@@ -1,0 +1,61 @@
+##############################################################################
+################################ makefile-c ##################################
+##############################################################################
+#									     #
+#   complete makefile of SUBGRADBlock / SUBGRADSolver                                #
+#									     #
+#   The makefile defines internally all external libraries (comprised the    #
+#   SMS++ one) required by SUBGRADBlock / SUBGRADSolver. Accordingly, all necessary  #
+#   OBJ, H, -I directives, external libraries + -L<libdirs> are added to the #
+#   corresponding SUBGRADBk* macros.                                             #
+#                                                                            #
+#   Input:  $(CC)       = compiler command                                   #
+#           $(SW)       = compiler options                                   #
+#           $(SUBGRADBkSDR) = the directory where SUBGRADBlock / SUBGRADSolver source is #
+#           $(SUBGRADBkODR) = the directory where the objects have to be put     #
+#                                                                            #
+#   Output: $(SUBGRADBkOBJ) = the final object(s) / library                      #
+#           $(SUBGRADBkLIB) = external libraries + -L<libdirs>                   #
+#           $(SUBGRADBkH)   = the .h files to include for SUBGRADBlock / SUBGRADSolver   #
+#           $(SUBGRADBkINC) = the -I$( SUBGRADBlock / SUBGRADSolver directory )          #
+#                                                                            #
+#                                VERSION 1.00                                #
+#                               19 - 09 - 2018                               #
+#                                                                            #
+#                              Antonio Frangioni                             #
+#                          Operations Research Group                         #
+#                         Dipartimento di Informatica                        #
+#                             Universita' di Pisa                            #
+#									     #
+##############################################################################
+
+# define & include the necessary modules- - - - - - - - - - - - - - - - - - -
+# if a module is not used in the current configuration, just comment out the
+# corresponding include line
+# each module outputs some macros to be used here:
+# *OBJ is the final object/library
+# *H   is the list of all include files
+# *INC is the -I<include directories>
+
+# define input macros for SMS++ complete makefile, then include it
+SMS++SDR = $(SUBGRADBkSDR)../SMS++/
+include $(SMS++SDR)lib/makefile-inc
+
+# define input macros for libSUBGRADCl complete makefile, then include it
+#libSUBGRADClDIR = $(SUBGRADBkSDR)../SUBGRADClass/
+#include $(libSUBGRADClDIR)lib/makefile-inc
+
+# include the makefile requiring all external modules in input
+include $(SUBGRADBkSDR)/makefile
+
+# macroes to be exported- - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+# append external -I directives to SUBGRADBkINC, SUBGRADBkOBJ and SUBGRADBkH as defined
+# by the makefile, thus the := assignment has to be used (use GNU make)
+SUBGRADBkOBJ := $(SUBGRADBkOBJ) $(libSUBGRADClOBJ) $(SMS++OBJ)
+SUBGRADBkINC := $(SUBGRADBkINC) $(SMS++INC) $(libSUBGRADClINC)
+
+# external libreries for SUBGRADBlock
+SUBGRADBkLIB = $(SMS++LIB) $(libSUBGRADClLIB)
+
+############################ End of makefile #################################
