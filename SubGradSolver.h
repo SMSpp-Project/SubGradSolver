@@ -3,7 +3,7 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  *
- * Definition of the SUBGRADSolver class , which implements the CDASolver interface
+ * Definition of the SubGradSolver class , which implements the CDASolver interface
  * for NonDifferentiable Optimization Solvers, as described in CDASolver.h,
  * using a (deflected, projected, incremental) subgradient-type algorithm.
  *
@@ -55,16 +55,21 @@
 
 
 
-#include "C05Function.h"
+
 #include "CDASolver.h"
+#include "Function.h"
+#include "C05Function.h"
+#include "LinearFunction.h"
 
-
+#include "Block.h"
 #include "ColVariable.h"
+#include "FRealObjective.h"
+#include "FRowConstraint.h"
 
 #include "Configuration.h"
 
-//#include "Stepsize.h"
 #include "Deflection.h"
+#include "Stepsize.h"
 
 
 
@@ -76,18 +81,8 @@
 
 
 
-
-/*--------------------------------------------------------------------------*/
-/*------------------------------ TEMPLATES ---------------------------------*/
-/*--------------------------------------------------------------------------*/
-
-
-template<class T>
-inline T ABS( const T x )
-{
- return( x >= T( 0 ) ? x : -x );
- }
-
+#define VLOG( l , x ) if( LogVerb > l ) *f_log << x
+#define VLOG2( l , c , x ) if( ( LogVerb > l ) && c ) *f_log << x
 
 
 
@@ -106,11 +101,11 @@ using namespace SMSpp_di_unipi_it;
     @{ */
 
 /*--------------------------------------------------------------------------*/
-/*--------------------------- CLASS SubGrad  -------------------------------*/
+/*--------------------------- CLASS SubGradSolver  -------------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/** The SUBGRADSolver class implements the CDASolver interface for NonDifferentiable
+/** The SubGradSolver class implements the CDASolver interface for NonDifferentiable
  * Optimization Solvers, using a unified subgradient-type algorithm as
  * described in:
  *
@@ -148,10 +143,10 @@ using namespace SMSpp_di_unipi_it;
 
 
 class Stepsize;
+class Deflection;
 
 
-
-class SUBGRADSolver : public CDASolver {
+class SubGradSolver : public CDASolver {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -168,16 +163,16 @@ public:
 	/** @name Friend classes
 		@{ */
 
-	/** The classes Stepsize and Deflection are "friends" of SubGrad. This is
+	/** The classes Stepsize and Deflection are "friends" of SubGradSolver. This is
 	    done because Stepsize and Deflection objects may need some protected
 	    data to work. An issue, however, is that derived classes from friend
 	    classes are not friend, and therefore actual implementations of
-	    Stepsize and Deflection cannot access data of SubGrad unless this
+	    Stepsize and Deflection cannot access data of SubGradSolver unless this
 	    capability is explicitly provided by the base classes, who are friends.
 	    This is why Stepsize and Deflection define a few methods that allow to
 	    read protected data of SubGrad: so that any derived class can use them to
 	    access to these data. These methods are, in fact, implemented at the end
-	    of SubGrad.C. */
+	    of SubGradSolverc.Cpp. */
 
 	  friend class Stepsize;
 	  friend class Deflection;
@@ -197,7 +192,7 @@ public:
 
 
 
-	SUBGRADSolver();
+	SubGradSolver();
 
 	/**< Constructor of the class.
 
@@ -211,29 +206,21 @@ public:
 
 
 
-	virtual ~SUBGRADSolver();
+	virtual ~SubGradSolver();
 
 
 
 
-	virtual int compute( bool changedvars = true ) override {return 0;};
+	virtual int compute( bool changedvars = true ) override;
 
 
 
-	virtual void get_var_solution( Configuration *solc = nullptr ) override {};
+	virtual void get_var_solution( Configuration *solc = nullptr ) override;
 
 
 
-	virtual void get_dual_solution( Configuration *solc = nullptr ) override {};
+	virtual void get_dual_solution( Configuration *solc = nullptr ) override;
 
-
-
-
-	virtual const std::string & private_name( void ) const override  {
-
-		static const std::string val;
-		return val;
-	};
 
 
 
@@ -253,6 +240,17 @@ public:
 	/** @name Public Types
 	    @{ */
 
+
+	//Public enum describing the "status" of the FiOracle as returned by
+	  //  GetFiStatus() [see below].
+
+	   enum FiStatus { kFiNorm = 0,
+			   kFiError ,
+			   kFiChgd ,
+			   kFiStop ,
+			   kFiCont
+	                   };
+
 	 /// Public enum "extending" sol_type to a specific case of CDASolvers
 
 
@@ -262,7 +260,7 @@ public:
 	    /**< Convenience value for easily allow derived classes
 	* to extend the set of int algorithmic parameters. */
 
-		SGPar1=intLastAlgPar, ///< projection-strategy parameters
+		intSGPar1=intLastAlgPar, ///< projection-strategy parameters
 
 		/*-#  SGPar1 [0] The direction \f$d_i\f$ is assumed to be such a
 			                    convex combination of the subgradient \f$g_i\f$ and
@@ -285,7 +283,7 @@ public:
 			       because \f$d_i\f$, being a (convex) combination of \f$g_i\f$ and
 			       \f$d_{i-1}\f$, coincides with its projection.*/
 
-		SGPar3, ///< scheme: stepsize(deflection)-restricted
+		intSGPar3, ///< scheme: stepsize(deflection)-restricted
 
 		/* -# Index SGPar3 [1] The convergence scheme. This field is coded
 	                        bit-wise in the following way:
@@ -295,7 +293,7 @@ public:
 	                         - bit 1:  1 for the stepsize-restricted scheme,
 	                                   0 for the deflection-restricted scheme.*/
 
-		SGPar4,        ///< control if \f$ \hat{\lambda}_i \f$ is kept
+		intSGPar4,        ///< control if \f$ \hat{\lambda}_i \f$ is kept
 
 		/*-# bool SGPar4 [true] SGPar4 enables the use of
 	                          \f[
@@ -305,7 +303,7 @@ public:
 	                          which could have a certain influence on the
 	                          stopping test [see IsOptimal()].*/
 
-		SGPar5, ///< seed
+		intSGPar5, ///< seed
 
 		/* -# Index SGPar5 [0] The seed value used in a call to srand. The
 	                        components are re-shuffled in the incrmental variant,
@@ -325,7 +323,7 @@ public:
 		                 /**< Convenience value for easily allow derived classes
 				  * to extend the set of double algorithmic parameters. */
 
-		SGPar2=dblLastAlgPar, ///< incremental factor
+		dblSGPar2=dblLastAlgPar, ///< incremental factor
 
 		/* -#  SGPar2 [0] To manage the incremental iterations. A sequence
 	                    of incremental (or inner) iterations NItIncr performed
@@ -338,9 +336,9 @@ public:
 	       = NULL, because we do not manage with the sum of subgradients of
 	       different components.*/
 
-		par_tStar, //[1e+2]   Optimality related parameters. Proving that some
+		dbltStar, //[1e+2]   Optimality related parameters. Proving that some
 
-		par_EpsLin, //[1e-6] point Lambda is optimal for a NonDifferentiable
+		dblEpsLin, //[1e-6] point Lambda is optimal for a NonDifferentiable
 
 		/*Optimization problem involves finding an all-0 subgradient
 		   of the function at Lambda. If an all-0 vector is found in
@@ -371,10 +369,10 @@ public:
     used for MaxFi, although using the bast Fi-value found so far is pretty
     common.*/
 
-		par_EInit, // [1e-2] The evaluation of function to be minimized may be a
-		par_EFnal, //[1e-6] costly task: in many cases, it requires the solution
-		par_EDcrs, // [.95]  of a - possibly hard - optimization problem. Often,
-		par_EStps,  // [0]    time can be saved if the function is only
+		dblEInit, // [1e-2] The evaluation of function to be minimized may be a
+		dblEFnalt, //[1e-6] costly task: in many cases, it requires the solution
+		dblEDcrs, // [.95]  of a - possibly hard - optimization problem. Often,
+		dblEStps,  // [0]    time can be saved if the function is only
 		/*approximately computed at the beginning of the optimization
 		   process; of course, the computation should become more and
     more "exact" as the optimization proceeds. The relative precision required
@@ -407,6 +405,20 @@ public:
 	 *  @{ */
 
 
+	/// set the (pointer to the) Block that the Solver has to solve
+
+	 void set_Block( Block * block ) override;
+
+	 /*--------------------------------------------------------------------------*/
+
+	  virtual void set_par( const idx_type par , const int value ) override;
+
+	 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+	  virtual void set_par( const idx_type par , const double value ) override;
+
+
+	 /*--------------------------------------------------------------------------*/
 
 
 
@@ -429,37 +441,37 @@ public:
 
 	 void SetStepsize( Stepsize *STP = nullptr );
 
-	 /**< Gives to the SubGrad object a pointer to an object of class Stepsize
+	 /**< Gives to the SubGradSolver object a pointer to an object of class Stepsize
 	  * that will be used to provide \f$\nu_i\f$ during the subgradient algorithm.
 	  *
-	  * The Stepsize object can be changed during the life of a SubGrad object,
+	  * The Stepsize object can be changed during the life of a SubGradSolver object,
 	  * but this change clearly forces the reset of all the information about the
 	  * function accumulated so far. Passing nullptr does exactly this job. Note
-	  * that the Stepsize object becomes property of the SubGrad object: if a new
-	  * one is passed, or the SubGrad object is destroyed, then the current
-	  * Stepsize object in the SubGrad one (if any) is destroyed. */
+	  * that the Stepsize object becomes property of the SubGradSolver object: if a new
+	  * one is passed, or the SubGradSolver object is destroyed, then the current
+	  * Stepsize object in the SubGradSolver one (if any) is destroyed. */
 
 	 /*--------------------------------------------------------------------------*/
 
-	  //  void SetDeflection( Deflection *Vol = nullptr );
+	    void SetDeflection( Deflection *Vol = nullptr );
 
-	 /**< Gives to the SubGrad object a pointer to an object of class Deflection
+	 /**< Gives to the SubGradSolver object a pointer to an object of class Deflection
 	  * that will be used to provide a deflection coefficient \f$ \alpha_i\f$ .
 	  *
-	  * The Deflection object can be changed during the life of a SubGrad object,
+	  * The Deflection object can be changed during the life of a SubGradSolver object,
 	  * but this change clearly forces the reset of all the information about the
 	  * function accumulated so far. Passing nullptr does exactly this job. Note
-	  * that the Deflection object becomes property of the SubGrad object: if a
-	  * new one is passed, or the SubGrad object is destroyed, then the current
-	  * Deflection object in the SubGrad one (if any) is destroyed.
+	  * that the Deflection object becomes property of the SubGradSolver object: if a
+	  * new one is passed, or the SubGradSolver object is destroyed, then the current
+	  * Deflection object in the SubGradSolver one (if any) is destroyed.
 	  *
-	  * Unlike with Stepsize, SubGrad can work with a nullptr Deflection: this just
+	  * Unlike with Stepsize, SubGradSolver can work with a nullptr Deflection: this just
 	  * means that the deflection coefficient is kept to 1, i.e., no deflection. */
 
 
 
 	/*--------------------------------------------------------------------------*/
-
+// the pointer of *fi is set inside set_Block
 	   void SetFiOracle( C05Function *Fi = nullptr );
 
 	/*--------------------------------------------------------------------------*/
@@ -488,11 +500,13 @@ public:
 	/** @name Accessing the found solutions (if any)
 	 *  @{ */
 
-	 virtual OFValue get_lb( void ) override { return( this->lb ); }
+
+	 // the lb for the SubGradSolver is -Inf<double()>
+	 virtual OFValue get_lb( void ) override;
 
 	/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
-	 virtual OFValue get_ub( void )  override { return( this->ub ); }
+	 virtual OFValue get_ub( void )  override ;
 
 	/*--------------------------------------------------------------------------*/
 
@@ -542,30 +556,7 @@ public:
 	/**< Returns \f$\hat{f}\f$, if \f$ \hat{\lambda}_i \f$ is kept in memory.
 	 * Otherwise it returns Inf<HpNum>().   */
 
-	/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
-	   bool IsOptimal( Function::FunctionValue eps = 0 );
-
-	/**< Returns true if the solution \f$\bar{\lambda}_i\f$ is
-	 * \f$\epsilon\f$-optimal (relative), being \f$\epsilon \f$ set to EpsLin.
-	 * The parameter SGPar4 controls the linearization error to be used in
-	 * the stopping condition:
-	 *
-	 * -# SGPar4 = true:
-	 *    \f[
-	 *     t^* \|d_i\| + \max\{ \hat{\epsilon}_i , \epsilon_i \} <=
-	 *     \epsilon * max( 1 , |f_i^{rec}| )
-	 *    \f]
-	 *
-	 * -# SGPar4 = false: The criteria is just
-	 *    \f[
-	 *     t^* \|d_i\| + \epsilon_i <= \epsilon * max( 1 , |f_i^{rec}| )
-	 *    \f]
-	 *
-	 * where \f$ f^{rec}_i = \min \{ \, f_l \,:\, l = 1, \ldots, i \, \}\f$, i.e.
-	 * the <em> record value </em> on the optimum $f_*$ */
-
-	/*--------------------------------------------------------------------------*/
 
 
 	   /*--------------------------------------------------------------------------*/
@@ -780,36 +771,22 @@ public:
 
 	     virtual idx_type dbl_par_str2idx( const std::string & name ) const override
 	      {
-	    	 if( name == "SGPar2" )
-				return( SGPar2 );
-			 if( name == "par_tStar" )
-				return( par_tStar );
-			 if( name == "par_EpsLin" )
-			 	return( par_EpsLin );
-			 if( name == "par_EInit" )
-			 	return( par_EInit );
-			 if( name == "par_EFnal" )
-			 	return( par_EFnal );
-			 if( name == "par_EDcrs" )
-			 	return( par_EDcrs );
-			 if( name == "par_EStps" )
-			 	return( par_EStps );
-
-
+	    	 // these may be many enough as to warrant using a map
+	    	 const auto it = dbl_pars_map.find( name );
+	    	 if( it != dbl_pars_map.end() )
+	    	  return( it->second );
+	    	 else
 			   return( Solver::dbl_par_str2idx( name ) );
 	}
 
 	     /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 	      virtual idx_type int_par_str2idx( const std::string & name ) const override
 	      {
-	       if( name == "SGPar1" )
-	        return( SGPar1 );
-	       if( name == "SGPar3" )
-	        return( SGPar3 );
-	       if( name == "SGPar4" )
-	        return( SGPar4 );
-	       if( name == "SGPar5" )
-	       	 return( SGPar5 );
+	    	  // these may be many enough as to warrant using a map
+	    	  const auto it = int_pars_map.find( name );
+	    	  if( it != int_pars_map.end() )
+	    	   return( it->second );
+	    	  else
 
 	       return( Solver::int_par_str2idx( name ) );
 	       }
@@ -819,10 +796,9 @@ public:
 	      virtual const std::string & dbl_par_idx2str( const idx_type idx )
 	        const override
 	       {
-	    	  static const std::vector< std::string > pars = { "SGPar2" ,"par_tStar", "par_EpsLin","par_EInit","par_EFnalt","par_EDcrs","par_EStps" };
 
-	    	  	        if( ( idx >= SGPar2 ) && ( idx <= par_EStps ) )
-	    	  	         return( pars[ idx - SGPar2 ] );
+	    	  	        if( ( idx >= dblSGPar2 ) && ( idx < dblLastAlgParSG ) )
+	    	  	         return( dbl_pars_str[ idx - dblSGPar2 ] );
 	    	  	        else
 	    	  	         return( Solver::dbl_par_idx2str( idx ) );
 	        }
@@ -830,15 +806,24 @@ public:
 	      /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
 
+	      /*--------------------------------------------------------------------------*/
+
+	       virtual int get_int_par( const idx_type par ) const override;
+
+	      /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+	       virtual double get_dbl_par( const idx_type par ) const override;
+
+	      /*--------------------------------------------------------------------------*/
+
 	      /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
 	       virtual const std::string & int_par_idx2str( const idx_type idx )
 	        const override
 	       {
-	        static const std::vector< std::string > pars = { "SGPar1" , "SGPar3" , "SGPar4","SGPar5" };
 
-	        if( ( idx >= SGPar1 ) && ( idx <= SGPar5 ) )
-	         return( pars[ idx - SGPar1 ] );
+	        if( ( idx >= intSGPar1 ) && ( idx < intLastAlgParSG ) )
+	         return( int_pars_str[ idx - intSGPar1 ] );
 	        else
 	         return( Solver::int_par_idx2str( idx ) );
 	        }
@@ -854,7 +839,10 @@ public:
 	         * have to bother with implementing it. */
 
 	        virtual int get_dflt_int_par( const idx_type par ) const override{
-	         return( int( 0 ) );
+	        	if( ( par >= intSGPar1 ) && ( par < intLastAlgParSG ) )
+	        	  return( dflt_dbl_par[ par - intSGPar1 ] );
+	        	 else
+	        	  return( CDASolver::get_dflt_int_par( par ) );
 	         }
 
 
@@ -867,7 +855,10 @@ public:
 	         * not have to bother with implementing it. */
 
 	        virtual double get_dflt_dbl_par( const idx_type par ) const override{
-	         return( double( 0 ) );
+	        	if( ( par >= dblSGPar2 ) && ( par < dblLastAlgParSG ) )
+	        	  return( dflt_dbl_par[ par - dblSGPar2 ] );
+	        	 else
+	        	  return( CDASolver::get_dflt_dbl_par( par ) );
 	         }
 
 	       /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -881,11 +872,24 @@ public:
 	         static const std::string empty = "";
 	         return( empty );
 	         }
+	        /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
-	 Configuration* getConfdeflection() const;
-	void setConfdeflection( Configuration*& confdeflection);
-     Configuration* getConfstepsize() const ;
-	void setConfstepsize( Configuration*& confstepsize);
+	        /** get the configuration params for deflection */
+	        Configuration* getConfdeflection() const;
+
+
+	        /** set the configuration for deflection, the params configuration is a
+	         * SimopleConfiguraztion<double> */
+	        void setConfdeflection( Configuration*& confdeflection);
+
+
+	        /** get the configuration for stepsize */
+	        Configuration* getConfstepsize() const ;
+
+
+	        /** set the configuration for stepsize, the configuration is a
+	        	         * SimopleConfiguraztion<double> */
+	        void setConfstepsize( Configuration*& confstepsize);
 
 	      /*@} -----------------------------------------------------------------------*/
 
@@ -896,7 +900,7 @@ private:
 /*--------------------------------------------------------------------------*/
 
 
-	 //SMSpp_insert_in_factory_h;
+	 SMSpp_insert_in_factory_h;
 
 
 
@@ -904,8 +908,15 @@ private:
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+	 /*--------------------------------------------------------------------------*/
+
+	 void Log1( void );
+	 void Log2( void );
+	 void Log3( void );
+	 void Log4( void );
 
 	/*--------------------------------------------------------------------------*/
+
 
 	   void AllocateUBLB( const Variable::Index strt , const Variable::Index num );
 
@@ -927,7 +938,7 @@ private:
 
 	/*--------------------------------------------------------------------------*/
 
-	   bool ProjFsb( double Lpt , bool & EmptySet );
+	   bool ProjFsb( std::vector<double> Lpt , bool & EmptySet );
 
 	   void ProjTng( std::vector<double> Gpt , std::vector<double> Lpt ,
 			 const Variable::Index strt = 0 , Variable::Index stp = Inf<Variable::Index>() );
@@ -948,26 +959,99 @@ private:
 
 	/*--------------------------------------------------------------------------*/
 
-	   void UpdtLowerBound( void );
+	//   void UpdtLowerBound( void );
 
 	/*--------------------------------------------------------------------------*/
 
-	   void MemDealloc( void );
+	   //void MemDealloc( void );
 
 	/*--------------------------------------------------------------------------*/
 	/*--------------------------------------------------------------------------*/
 
+	   /*--------------------------------------------------------------------------*/
+
+	      void FormLambda1( void );
+
+	   /**< After a (succesfull) call to FormD(), sets the new (unprojected)
+	    * tentative point \f$\breve{\lambda}_{i+1}\f$  as
+	    * \f[
+	    *  \breve{\lambda}_{i+1} = \lambda_i - \nu_i d_i \,.
+	    * \f]
+	    * Remark that the point \f$\breve{\lambda}_{i+1}\f$ must be projected before
+	    * calling FiandGi() [see above], i.e., \f$ \lambda_{i+1} = {\rm P}_{\Lambda}
+	    * ( \breve{\lambda}_{i+1} ) \f$. */
+
+	      /*--------------------------------------------------------------------------*/
+
+	         void MemDealloc( void );
+
+	      /*--------------------------------------------------------------------------*/
 
 
 
 protected:
+
+	   /*--------------------------------------------------------------------------*/
+	   /*-------------------------- PROTECTED METHODS -----------------------------*/
+	   /*--------------------------------------------------------------------------*/
+
+
+	      void FiAndGi( const Variable::Index wFi = Inf<Variable::Index>() );
+
+	     /**< Evaluates the function at the new point \f$\lambda_{i+1}\f$, i.e.,
+	      * \f$f(\lambda_{i+1})\f$, and it either computes a subgradient
+	      * \f$g_{i+1} \in \partial f(\lambda_{i+1})\f$, or, if the point is
+	      * infeasible, a constraint. */
+
+	     /*--------------------------------------------------------------------------*/
+
+	         void GotoLambda1( void );
+
+	      /**< Move the current point to \f$\lambda_{i+1}\f$. */
+
+	      /*--------------------------------------------------------------------------*/
+	   /*--------------------------------------------------------------------------*/
+
+	   	 /**< The method is used within Solve(), and its job is to compute the
+	   	  * direction \f$d_i\f$ that appears in the formula of \f$\lambda_{i+1}\f$.
+	   	  * The direction is actually saved after the variables generation because i)
+	   	  * the subgradient keeps in memory just the current direction, and ii) by
+	   	  * generating/removing variables the direction may quickly come to be
+	   	  * deteriorated. When the variables generation is ended [see GetFiStatus() in
+	   	  * FiOracle.h], SaveDir() must be called in order to update the direction.
+	   	  *
+	   	  * In addition, the deflection coefficient is computed inside FormD(). As for
+	   	  * the stepsize, the computation is performed within FormD() only if the
+	   	  * scheme is <em>deflection-restricted</em>. */
+
+	   	 void FormD( void ) ;
+
+	   	 /*--------------------------------------------------------------------------*/
+
+	   	 void SaveDir( void );
+
+	   	 /**< The method is combined with FormD() [see above] to carry out the
+	   	  * direction computation. Moreover, the stepsize is determined into SaveDir()
+	   	  * when the adopted scheme is <em>stepsize-restricted</em>. */
+
+	   	 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PROTECTED DATA STRUCTURES  ------------------*/
 /*--------------------------------------------------------------------------*/
 
 
+	   std::vector< C05Function * > v_c05f; /* the vector of the components of the
+	                                           sum function */
+	   LinearFunction * lf; ///< the 0-th component of the sum function
 
+
+
+	    std::vector< std::pair <C05Function::LinearizationName , C05Function::LinearCombination > > zA;
+	    /* the vector of the pairs  important linearization name and the
+	       linear combination used to form it */
+
+	   Vec_p_Var LamVcblr;    // the set of indices of Lambda
 
 	   Variable::Index KSGPar1;       ///< projection-strategy parameters
 //
@@ -984,12 +1068,12 @@ protected:
 
 
 
-
+	   Deflection *deflection;   ///< pointer to the Deflection class
 
 	   Stepsize *stepsize;       ///< pointer to the Stepsize class
 //
 
-	   Deflection *deflection;   ///< pointer to the Deflection class
+
 //
 	   Variable::Index MaxNumVar;     ///< maximum number of variables
 //
@@ -1045,8 +1129,8 @@ protected:
 	   bool dM1GkDone;      /**< true if the scalar product
 //				   \f$d_{i-1}^{\top} g_i\f$ has been computed */
 //
-	   ColVariable::VarValue ub;            ///< upper bounds on the variables
-	   ColVariable::VarValue lb;            ///< lower bounds on the variables
+	   Function::Vec_FunctionValue ub;            ///< upper bounds on the variables
+	   Function::Vec_FunctionValue lb;            ///< lower bounds on the variables
 //
 //	   #if SubGrad_HANDLES_CONSTRAINTS
 //	    Index MaxNCnst;      ///< maximum number of simplex constraints
@@ -1093,15 +1177,15 @@ protected:
 	   Variable::Index CSmallStep;    ///< counter of consecutive \a short step
 	   bool DoSS;           ///< SS vs NS
 //
-	   //FiOracle::FiStatus fs;  ///< FiOracle status
+	   FiStatus fs;  ///< FiOracle status
 	   //C05Function::
 
 
 
 
-	   C05Function* Oracle;  ///< (pointer to) the C05Function for Fi
+	  // C05Function* Oracle;  ///< (pointer to) the C05Function for Fi
 //
-//	   bool EmptySet;       ///< true, if the feasible set is empty
+	   bool EmptySet;       ///< true, if the feasible set is empty
 
 
 
@@ -1133,10 +1217,44 @@ protected:
 		Variable::Index GiEvaltns;   ///< total number of Gi() calls
 
 
-		std::ostream *NDOLog;   ///< the output stream object for log purposes
-		char NDOLLvl;      ///< the "level of verbosity" of the log
+		//std::ostream *NDOLog;   ///< the output stream object for log purposes
+		//char NDOLLvl;      ///< the "level of verbosity" of the log
 
 //		OPTtimers *NDOt;   ///< OPTtimer for timing purposes
+		int Result;        ///< result of the latest call to Solve()
+
+		double RelAcc; ///< relative accuracy for declaring a solution optimal
+		double AbsAcc; ///< absolute accuracy for declaring a solution optimal
+		double UpCutOff;    ///< upper cutoff for stopping the algorithm
+		double LwCutOff;    ///< lower cutoff for stopping the algorithm
+		double RAccSol;     ///< maximum relative error in any reported solution
+		double AAccSol;     ///< maximum absolute error in any reported solution
+		double FAccSol;     ///< maximum constraint violation in any reported solution
+
+		int MaxSol; ///< maximum number of different solutions to report
+		int LogVerb; ///< "verbosity" of the log
+
+
+
+		/*--------------------------------------------------------------------------*/
+
+		 const static std::vector<int> dflt_int_par;
+		 ///< the (static const) vector of int parameters default values
+
+		 const static std::vector<double> dflt_dbl_par;
+		 ///< the (static const) vector of double parameters default values
+
+		 const static std::vector< std::string > int_pars_str;
+		 ///< the (static const) vector of int parameters names
+
+		 const static std::vector< std::string > dbl_pars_str;
+		 ///< the (static const) vector of double parameters names
+
+		 const static std::map< std::string , idx_type > int_pars_map;
+		  ///< the (static const) map for int parameters names
+
+		 const static std::map< std::string , idx_type > dbl_pars_map;
+		 ///< the (static const) map for double parameters names
 
 };
 

@@ -5,7 +5,7 @@
  *
  * Definition of the abstract <tt>Stepsize</tt> class, which defines the
  * interface for computing the stepsize rule (SR) used by the
- * <tt>SUBGRADSolver</tt> class [see SUBGRADSolver.h].
+ * <tt>SubGradSolver</tt> class [see SubGradSolver.h].
  *
  * \version 1.01
  *
@@ -56,7 +56,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "SUBGRADSolver.h"
+#include "SubGradSolver.h"
 #include "C05Function.h"
 
 
@@ -72,7 +72,7 @@
 
 using namespace SMSpp_di_unipi_it;
 
- class SUBGRADSolver;     // forward declaration of class SUBGRADSolver
+ class SubGradSolver;     // forward declaration of class SubGradSolver
 
 
 /*--------------------------------------------------------------------------*/
@@ -84,7 +84,7 @@ using namespace SMSpp_di_unipi_it;
     @{ */
 
 /** The class Stepsize provides an interface for the stepsize rule, to be
- *  used in the SUBGRADSolver solver [see SUBGRADSolver.h].
+ *  used in the SubGradSolver solver [see SubGradSolver.h].
  *
  *  The main functions of the class are NewStep() and GetStepsize(). While
  *  NewStep() sets up a new step, the value \f$\nu_i\f$ is passed to the
@@ -134,7 +134,7 @@ class Stepsize
 
 
 
- Stepsize( SUBGRADSolver *slvr  ) ;// @suppress("Class members should be properly initialized")
+ Stepsize( SubGradSolver *slvr  ) ;// @suppress("Class members should be properly initialized")
 
 
 
@@ -174,7 +174,7 @@ class Stepsize
 
 
 
- static Stepsize* new_Stepsize( const std::string &classname , SUBGRADSolver *slvr  = nullptr );
+ static Stepsize* new_Stepsize( const std::string &classname , SubGradSolver *slvr  = nullptr );
 
 
 
@@ -328,7 +328,7 @@ class Stepsize
    /*--------------------------- PROTECTED TYPES ------------------------------*/
    /*--------------------------------------------------------------------------*/
 
-   typedef boost::function<Stepsize*(SUBGRADSolver*)> StepsizeFactory;
+   typedef boost::function<Stepsize*(SubGradSolver*)> StepsizeFactory;
     ///< type of the factory of StepSize
 
     typedef std::map<std::string,StepsizeFactory> StepsizeFactoryMap;
@@ -371,7 +371,7 @@ class Stepsize
 /** Returns the pointer to C05Function. Thus, stepsize can ask directly the
  * C05Function object for the function information. */
 
-   C05Function* GetOracle( void );
+   std::vector<C05Function*> GetOracle( void );
 
 /*--------------------------------------------------------------------------*/
 /** Returns the norm of the subgradient \f$ g_i \f$. */
@@ -422,7 +422,7 @@ enum param_stepsize{
 };
 
   
-  SUBGRADSolver *Solver;  ///< (pointer to) the SubGrad solver
+  SubGradSolver *Solver;  ///< (pointer to) the SubGrad solver
   std::ostream *STPLog;  ///< the output stream object
   char STPLLvl;     ///< the "level of verbosity"
 
@@ -516,7 +516,7 @@ class ColorTV : public Stepsize
      -# Index redtestinvl    [10] how many consecutive red iterations are
                              allowed before decreasing beta */
 
-  ColorTV( SUBGRADSolver *slvr );
+  ColorTV( SubGradSolver *slvr );
 
 
 /*@} -----------------------------------------------------------------------*/
@@ -669,7 +669,7 @@ class FumeroTV : public Stepsize
      -# index eta2      [ 10 ]   threshold on number of failures (phase II)
      */
 
- FumeroTV( SUBGRADSolver *slvr  );
+ FumeroTV( SubGradSolver *slvr  );
 
 
 /*@} -----------------------------------------------------------------------*/
@@ -780,7 +780,7 @@ class Polyak : public Stepsize
 /** @name Constructor
    @{ */
 
- Polyak( SUBGRADSolver *slvr ) ;
+ Polyak( SubGradSolver *slvr ) ;
 
  /**<  Constructor of the class. Since the constructor of Polyak is executed
     after the one of Stepsize, the following parameters specific for the

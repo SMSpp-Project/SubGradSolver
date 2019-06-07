@@ -20,7 +20,7 @@ SMSpp_insert_in_factory_cpp_1(Volume);
 /*------------------------- METHODS of Deflection --------------------------*/
 /*--------------------------------------------------------------------------*/
 
-Deflection::Deflection(SUBGRADSolver* slvr) {
+Deflection::Deflection(SubGradSolver* slvr) {
 
 	if( ! slvr )
 	     throw(std::logic_error( "Deflection::Deflection: no subgradient solver " ));
@@ -48,7 +48,7 @@ Deflection::Deflection(SUBGRADSolver* slvr) {
 }
 
 Deflection* Deflection::new_Deflection(const std::string& classname,
-		SUBGRADSolver* slvr) {
+		SubGradSolver* slvr) {
 
 	const auto it = Deflection::f_factory().find( classname );
 			   if( it == Deflection::f_factory().end() )
@@ -118,6 +118,11 @@ const double Deflection::ReadFVal(void) {
 	return this->Solver->FiLambda;
 }
 
+std::vector<C05Function*> Deflection::GetOracle(void) {
+	return this->Solver->v_c05f;
+}
+
+
 
 
 
@@ -126,7 +131,7 @@ const double Deflection::ReadFVal(void) {
 /*------------------------- METHODS of PrimalDual --------------------------*/
 /*--------------------------------------------------------------------------*/
 
-PrimalDual::PrimalDual(SUBGRADSolver* slvr) : Deflection::Deflection( slvr ),Stepsize::Stepsize(slvr){
+PrimalDual::PrimalDual(SubGradSolver* slvr) : Deflection::Deflection( slvr ),Stepsize::Stepsize(slvr){
 
 	this->average=deflectionconf->f_value[par_average];
 
@@ -154,7 +159,11 @@ void PrimalDual::Format(void) {
 
 	Deflection::Format();
 
-	 double LipTmp = GetOracle()->get_Lipschitz_constant();
+	 double LipTmp =0;// GetOracle()->get_Lipschitz_constant();
+
+	 for (auto a : Deflection::GetOracle())
+		 LipTmp+=a->get_Lipschitz_constant();
+
 	 if( LipTmp != LipCnst )
 	  LipCnst = LipTmp;
 
@@ -177,7 +186,10 @@ void PrimalDual::NewStep(void) {
 	// update the Lipschitz constant - - - - - - - - - - - - - - - - - - - - - -
 	 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-	 double LipTmp = GetOracle()->get_Lipschitz_constant();
+	 double LipTmp = 0;//GetOracle()->get_Lipschitz_constant();
+
+	 for (auto a : Deflection::GetOracle())
+	 		 LipTmp+=a->get_Lipschitz_constant();
 	 if( LipTmp != LipCnst )
 	  LipCnst = LipTmp;
 
@@ -237,7 +249,7 @@ void PrimalDual::SetMaxBeta(const double alpha) {
 /*------------------------- METHODS of Volume ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-Volume::Volume(SUBGRADSolver* slvr) : Deflection::Deflection( slvr ){
+Volume::Volume(SubGradSolver* slvr) : Deflection::Deflection( slvr ){
 
 
 	this->tauInit=deflectionconf->f_value[par_tauInit]; //
@@ -287,7 +299,7 @@ void Volume::NewDEF(void) {
 
 	 if( ! ( Solver->NrIter() % tauIter ) )
 	  if( tau > tauMin ) {
-	   const double x = ( lastvalue - FiRec ) / ABS( FiRec );
+	   const double x = ( lastvalue - FiRec ) / std::abs( FiRec );
 	   lastvalue = FiRec;
 	   if( x <= 0.01 ) {
 	    tau *= tauFactor;
@@ -313,7 +325,7 @@ const bool Volume::DoSS(void) {
 	double Delta;
 
 	Delta = Solver->get_dbl_par(Solver->dbl_par_str2idx("par_EpsLin"));
-	Delta *= m * std::max( 1.0 , ABS( Solver->ReadBestFiVal() ) );
+	Delta *= m * std::max( 1.0 , std::abs( Solver->ReadBestFiVal() ) );
 
 	 // if there is an improvement of Fi(), a SS occurs; otherwise, a NS occurs
 	 if( ( Solver->ReadFiVal() - Solver->ReadFVal() ) >= Delta )
@@ -329,7 +341,7 @@ double Volume::Delta(void) {
 
 	EpsLin = Solver->get_dbl_par(Solver->dbl_par_str2idx("par_EpsLin"));
 
-	 return( m * EpsLin * std::max( 1.0 , ABS( Solver->ReadBestFiVal() ) ) );
+	 return( m * EpsLin * std::max( 1.0 , std::abs( Solver->ReadBestFiVal() ) ) );
 }
 
 void Volume::Solve(void) {
@@ -365,5 +377,4 @@ void Volume::Solve(void) {
 	   alpha = tau / 10;
 
 }
-
 

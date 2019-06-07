@@ -18,16 +18,12 @@
 /*--------------------------------------------------------------------------*/
 
 #include <NDOBlock.h>
+#include <SubGradSolver.h>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
 #include <iostream>
 
-
-#include "SUBGRADSolver.h"
-
-//#include "Stepsize.h"
-//#include "Deflection.h"
 
 #include "ThinComputeInterface.h"
 #include "Configuration.h"
@@ -63,7 +59,7 @@ int main( int argc , char **argv )
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 
-SUBGRADSolver *solver = new SUBGRADSolver();
+SubGradSolver *solver = new SubGradSolver();
 
 
  int pr = solver->get_int_par(1);

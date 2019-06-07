@@ -38,7 +38,8 @@
 # *INC is the -I<include directories>
 
 # define input macros for SMS++ complete makefile, then include it
-SMS++SDR = $(SUBGRADBkSDR)../SMS++/
+
+SMS++SDR = $(SUBGRADBkSDR)../../git/sms_plus_plus/
 include $(SMS++SDR)lib/makefile-inc
 
 # define input macros for libSUBGRADCl complete makefile, then include it

@@ -3,8 +3,8 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Definition of the abstract class <tt>Deflection</tt>, which defines the
- * interface for computing the delflection coefficient within the SUBGRADSolver
- * class [see SUBGRADSolver.h].
+ * interface for computing the delflection coefficient within the SubGradSolver
+ * class [see SubGradSolver.h].
  * 
  * \version 1.01
  *
@@ -53,8 +53,9 @@
 
 
 
+
+#include "SubGradSolver.h"
 #include "Stepsize.h"
-#include "SUBGRADSolver.h"
 #include <algorithm>
 
 
@@ -65,9 +66,9 @@
 using namespace SMSpp_di_unipi_it;
 
 
-//class Stepsize;
+ class Stepsize;
 
- class SUBGRADSolver;     // forward declaration of class SUBGRADSolver
+ class SubGradSolver;     // forward declaration of class SubGradSolver
 
 
 
@@ -80,7 +81,7 @@ using namespace SMSpp_di_unipi_it;
     @{ */
 
 /** The class Deflection provides an interface for the deflection rule (DR),
- *  to be used in the SUBGRADSolver solver [see SUBGRADSolver.h].
+ *  to be used in the SubGradSolver solver [see SubGradSolver.h].
  *
  *  The aim of this class is to compute the deflection coefficient
  *  \f$ \alpha_i \f$, which is employed in the search direction formula as
@@ -115,14 +116,14 @@ class Deflection
 /** @name Constructor
 	@{ */
 
-/** Constructor of the class. It has no parameters apart the SUBGRADSolver object
+/** Constructor of the class. It has no parameters apart the SubGradSolver object
  * using it because there is no "standard" deflection rule (except "no
- * deflection", i.e., \f$ \alpha_i = 1 \f$, which however in SUBGRADSolver is
+ * deflection", i.e., \f$ \alpha_i = 1 \f$, which however in SubGradSolver is
  * treated by just setting the null Deflection object). */
 
-   Deflection( SUBGRADSolver *slvr );
+   Deflection( SubGradSolver *slvr );
 
-   static Deflection* new_Deflection( const std::string &classname , SUBGRADSolver *slvr  = nullptr );
+   static Deflection* new_Deflection( const std::string &classname , SubGradSolver *slvr  = nullptr );
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -227,7 +228,7 @@ class Deflection
       /*--------------------------- PROTECTED TYPES ------------------------------*/
       /*--------------------------------------------------------------------------*/
 
-      typedef boost::function<Deflection*(SUBGRADSolver*)> DeflectionFactory;
+      typedef boost::function<Deflection*(SubGradSolver*)> DeflectionFactory;
        ///< type of the factory of Deflection
 
        typedef std::map<std::string,DeflectionFactory> DeflectionFactoryMap;
@@ -240,13 +241,13 @@ class Deflection
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Protected methods to read from SUBGRADSolver
+/** @name Protected methods to read from SubGradSolver
  *
  * These methods are used to provide access to the information stored into
- * the SUBGRADSolver object. Deflection is a "friend" of SUBGRADSolver and therefore it
+ * the SubGradSolver object. Deflection is a "friend" of SubGradSolver and therefore it
  * can read its protected data structures, but classes derived from
- * Deflection are not friend of SUBGRADSolver and cannot. This is why these methods
- * are defined in the base class (and implemented in SUBGRADSolver.C).
+ * Deflection are not friend of SubGradSolver and cannot. This is why these methods
+ * are defined in the base class (and implemented in SubGradSolver.C).
  * @{ */
 
 
@@ -270,7 +271,7 @@ class Deflection
    double GetStepsize( void );
 
 /*--------------------------------------------------------------------------*/
-/** Returns the norm of the SUBGRADSolverient \f$ g_i \f$. */
+/** Returns the norm of the SubGradSolverient \f$ g_i \f$. */
 
   const double GetGiNorm( void );
 
@@ -299,11 +300,20 @@ class Deflection
 
   const  double ReadFVal( void );
 
+
+  /*--------------------------------------------------------------------------*/
+  /** Returns the pointer to FiOracle. Thus, Deflection can ask directly the
+   * FiOracle object for the function information. */
+
+     std::vector<C05Function*> GetOracle( void );
+
+  /*--------------------------------------------------------------------------*/
+
 /*@} -----------------------------------------------------------------------*/
 /*----------------------- PROTECTED DATA STRUCTURES  -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-  SUBGRADSolver *Solver;    ///< (pointer to) the SUBGRADSolver solver
+  SubGradSolver *Solver;    ///< (pointer to) the SubGradSolver solver
   std::ostream *VOLLog;    ///< the output stream object
   char VOLLLvl;       ///< the "level of verbosity"
 
@@ -367,7 +377,7 @@ class PrimalDual :  public Deflection, public Stepsize
 	    };
 
 
-PrimalDual( SUBGRADSolver *slvr  );
+PrimalDual( SubGradSolver *slvr  );
 
 
 
@@ -454,7 +464,7 @@ PrimalDual( SUBGRADSolver *slvr  );
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** Definition of the class Volume. This class implements the Volume algorithm.
-    The method is revisited and incorporated in the SUBGRADSolver solver. The
+    The method is revisited and incorporated in the SubGradSolver solver. The
     deflection coefficient is found solving a quadratic problem that
     involves the subgradient \f$ g_i \f$, the direction \f$ d_{i-1} \f$, and
     their respective linearization errors \f$ \sigma_i \f$  and
@@ -504,7 +514,7 @@ class Volume : public Deflection
 
     -#   double m         [1e-3]  descent parameter */
 
-  Volume( SUBGRADSolver *slvr );
+  Volume( SubGradSolver *slvr );
 
  /*@} -----------------------------------------------------------------------*/
  /*-------------------------- OTHER INITIALIZATIONS -------------------------*/

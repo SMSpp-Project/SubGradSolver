@@ -25,7 +25,7 @@ SMSpp_insert_in_factory_cpp_1(Polyak);
 
 
 Stepsize* Stepsize::new_Stepsize(const std::string& classname,
-		SUBGRADSolver* slvr) {
+		SubGradSolver* slvr) {
 
 	const auto it = Stepsize::f_factory().find( classname );
 		   if( it == Stepsize::f_factory().end() )
@@ -46,7 +46,7 @@ Stepsize::StepsizeFactoryMap& Stepsize::f_factory(void) {
 
 
 
-Stepsize::Stepsize(SUBGRADSolver* slvr) {
+Stepsize::Stepsize(SubGradSolver* slvr) {
 
 	Solver=slvr; ///< (pointer to) the SubGrad solver
 
@@ -102,13 +102,18 @@ double Stepsize::GetStepsize(bool StepIsIncr) {
 	const double STEpZro = 1e-8;
 
 	if( StepIsIncr ) {
-	 Function::FunctionValue  LipCns = GetOracle()->get_Lipschitz_constant();
+
+	 Function::FunctionValue  LipCns =0;
+	 for(auto a: GetOracle()){
+		 LipCns+=a->get_Lipschitz_constant();
+	 }
+
 	 denomin = LipCns * LipCns * Function::FunctionValue( LpsFct * GetNItIcr() );
 	 }
 	else
 	 denomin = GetDNorm();
 
-	if( denomin <= ( STEpZro * std::max( ABS( ReadFiBar() ) , Function::FunctionValue(1) ) ) )
+	if( denomin <= ( STEpZro * std::max( std::abs( ReadFiBar() ) , Function::FunctionValue(1) ) ) )
 	 step = 1;
 	else {
 		Function::FunctionValue Beta_ = Beta;
@@ -146,8 +151,8 @@ double Stepsize::GetCoeffDefl(void) {
 	return this->Solver->alpha;
 }
 
-C05Function* Stepsize::GetOracle(void) {
-	return this->Solver->Oracle;
+std::vector<C05Function*> Stepsize::GetOracle(void) {
+	return this->Solver->v_c05f;
 }
 
 const double Stepsize::GetGiNorm(void) {
@@ -185,7 +190,7 @@ const double Stepsize::ReadFiBar(void) {
 /*--------------------------------------------------------------------------*/
 
 
-ColorTV::ColorTV(SUBGRADSolver* slvr) : Stepsize::Stepsize( slvr  ) {
+ColorTV::ColorTV(SubGradSolver* slvr) : Stepsize::Stepsize( slvr  ) {
 
 	this->BetaZero=stepsizeconf->f_value[par_BetaZero]; // initial value of beta
 	this->greentestinvl=stepsizeconf->f_value[par_greentestinvl];
@@ -263,7 +268,12 @@ bool ColorTV::UpdateTargetLevel(void) {
 	 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 
-	 Function::FunctionValue LwrBnd_ = GetOracle()->get_lower_estimate() ;
+	 Function::FunctionValue LwrBnd_ = 0;
+	 for(auto a : GetOracle()){
+		 LwrBnd_+=a->get_lower_estimate();
+	 }
+
+
 	 if( LwrBnd_ > LwrBnd )
 	  LwrBnd = LwrBnd_;
 
@@ -277,12 +287,12 @@ bool ColorTV::UpdateTargetLevel(void) {
 	 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 	 if( ( FiLev < -10 ) || ( FiLev > 10 ) ) {  // nicely away from 0
-	  if( FiLmbd <= FiLev + ABS( FiLev ) * 0.05 ) {
+	  if( FiLmbd <= FiLev + std::abs( FiLev ) * 0.05 ) {
 	   if( ( FiLmbd < 10 ) && ( FiLmbd > - 9.5 ) )
 	    FiLev= - 10;
 	   else {
-	    FiLev -= 0.025 * ABS( FiLev  );
-	    FiLev = std::min( FiLev , FiLmbd - 0.05 * ABS( FiLmbd ) );
+	    FiLev -= 0.025 * std::abs( FiLev  );
+	    FiLev = std::min( FiLev , FiLmbd - 0.05 * std::abs( FiLmbd ) );
 	    }
 	   TLchgd = true;
 	   }
@@ -315,7 +325,7 @@ const ColorTV::condition ColorTV::coloring(void) {
 
 	 condition lastswing;
 	 if( ( -GetdGk() <= -1e-6 ) && ( lastvalue - FiLmbd >=
-		       1e-6 * std::max( ABS( Solver->ReadBestFiVal() ) , 1.0 ) ) )  {
+		       1e-6 * std::max( std::abs( Solver->ReadBestFiVal() ) , 1.0 ) ) )  {
 	  lastswing = green;
 	  lastgreeniter = NrIter;
 	  }
@@ -381,7 +391,7 @@ const ColorTV::condition ColorTV::coloring(void) {
 /*------------------------- METHODS of FumeroTV ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-FumeroTV::FumeroTV(SUBGRADSolver* slvr) : Stepsize::Stepsize( slvr  ) {
+FumeroTV::FumeroTV(SubGradSolver* slvr) : Stepsize::Stepsize( slvr  ) {
 
 	this->sigmaMin=stepsizeconf->f_value[par_sigmaMin]; // initial value of beta
     this->r1=stepsizeconf->f_value[par_r1];
@@ -458,7 +468,10 @@ bool FumeroTV::UpdateTargetLevel(void) {
 	 // the target level is updated if any changes of the lower bound occurs - - -
 	 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-	 Function::FunctionValue LwrBnd_ = GetOracle()->get_lower_estimate();
+	 Function::FunctionValue LwrBnd_ = 0;//GetOracle()->get_lower_estimate();
+	 for(auto a: GetOracle()){
+		 LwrBnd_+=a->get_lower_estimate();
+	 }
 	 if( LwrBnd_ > LwrBnd ) {
 	  LwrBnd = LwrBnd_;
 	  TLchgd = true;
@@ -474,7 +487,7 @@ bool FumeroTV::UpdateTargetLevel(void) {
 	 if( FiRef == Inf<double>() )  // not initialized yet
 	  FiRef_ = Inf<double>();
 	 else
-	  FiRef_ = FiRef - ( 1e-6 * std::max( 1.0 , ABS( FiRef ) ) );
+	  FiRef_ = FiRef - ( 1e-6 * std::max( 1.0 , std::abs( FiRef ) ) );
 
 	 // beta updating- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -528,7 +541,7 @@ double FumeroTV::ExpFun(Variable::Index ri) {
 
 
 
-Polyak::Polyak(SUBGRADSolver* slvr) : Stepsize::Stepsize( slvr  ) {
+Polyak::Polyak(SubGradSolver* slvr) : Stepsize::Stepsize( slvr  ) {
 
 	this->Beta=stepsizeconf->f_value[par_Beta];
 
@@ -570,7 +583,10 @@ void Polyak::NewStep(void) {
 
 bool Polyak::UpdateTargetLevel(void) {
 
-	Function::FunctionValue LwrBnd = GetOracle()->get_lower_estimate();
+	Function::FunctionValue LwrBnd =0;// GetOracle()->get_lower_estimate();
+	for(auto a: GetOracle()){
+			 LwrBnd+=a->get_lower_estimate();
+		 }
 	 if( LwrBnd > FiLev ) {
 	  FiLev = LwrBnd;
 	  return( true );
