@@ -303,7 +303,7 @@ void SubGradSolver::set_Block(Block* block) {
 	  //MemDealloc();  // deallocate memory
 
 
-	  MaxNumVar = NumVar//Oracle->GetMaxNumVar();
+	  MaxNumVar = NumVar;//Oracle->GetMaxNumVar();
 
 
 	//nella mail dice che a simone non interessano
@@ -322,7 +322,7 @@ void SubGradSolver::set_Block(Block* block) {
 
 	   // VectAssign( LambdaBar , LMNum( 0 ) , MaxNumVar );  // default = 0
 
-	    std::vector<double> vd0(MaxNumVar,0);
+	    //std::vector<double> vd0(MaxNumVar,0);
 	    Lambda.assign(vd0.begin(),vd0.end());
 	    //Lambda = new LMNum[ MaxNumVar ];                   // tentative point
 	    //VectAssign( Lambda , LMNum( 0 ) , MaxNumVar );     // default = 0
@@ -1847,7 +1847,7 @@ void SubGradSolver::FiAndGi(const Variable::Index wFi) {
 
 	  auto iL=Lambda.begin();
 	  for(auto l : LamVcblr){
-		  auto lc= static_cast<ColVariable*>(l)->set_value(*(iL++));
+		  static_cast<ColVariable*>(l)->set_value(*(iL++));
 	  }
 
 	  //Oracle->SetLambda( Lambda );
@@ -1933,25 +1933,25 @@ void SubGradSolver::MemDealloc(void) {
 
 	// the point - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-	 delete[] LambdaBar;
-	 delete[] Lambda;
-	 delete[] LambdaBest;
-	 delete[] LambdaHat;
+	 LambdaBar.clear();
+	 Lambda.clear();
+	 LambdaBest.clear();
+	 LambdaHat.clear();
 
 	 // box and simplex constraints - - - - - - - - - - - - - - - - - - - - - - -
 
-	 delete[] lb;
-	 delete[] ub;
+	 lb.clear();
+	 ub.clear();
 
 	 #if SubGrad_HANDLES_CONSTRAINTS
 	 #endif
 
 	 // the subgradients and direction- - - - - - - - - - - - - - - - - - - - - -
 
-	 delete[] Gi;
-	 delete[] dir;
+	 Gi.clear();
+	 dir.clear();
 
-	 delete[] MultBse;
+	 //MultBse
 
 }
 
