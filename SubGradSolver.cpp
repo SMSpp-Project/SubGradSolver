@@ -316,20 +316,20 @@ void SubGradSolver::set_Block(Block* block) {
 	    // allocate memory - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		std::vector<double> vd0(MaxNumVar,0);
-	    LambdaBar.swap(vd0); //= new std::vector<double>(MaxNumVar) LMNum[ MaxNumVar ];                // stability center
+	    LambdaBar.assign(vd0.begin(),vd0.end()); //= new std::vector<double>(MaxNumVar) LMNum[ MaxNumVar ];                // stability center
 
 
 
 	   // VectAssign( LambdaBar , LMNum( 0 ) , MaxNumVar );  // default = 0
 
 	    std::vector<double> vd0(MaxNumVar,0);
-	    Lambda.swap(vd0);
+	    Lambda.assign(vd0.begin(),vd0.end());
 	    //Lambda = new LMNum[ MaxNumVar ];                   // tentative point
 	    //VectAssign( Lambda , LMNum( 0 ) , MaxNumVar );     // default = 0
 
 	    if( KpBstL ){
 	    	std::vector<double> vd0(MaxNumVar,0);
-	    	LambdaBest.swap(vd0);            // best point so far
+	    	LambdaBest.assign(vd0.begin(),vd0.end());           // best point so far
 	    }
 	    else
 	     LambdaBest.clear();
@@ -347,8 +347,8 @@ void SubGradSolver::set_Block(Block* block) {
 	    // same values after any deflection update.
 	    std::vector<double> g0(MaxNumVar,0);
 	    std::vector<double> d0(MaxNumVar,0);
-	    Gi.swap(g0);
-	    dir.swap(d0);
+	    Gi.assign(d0.begin(),d0.end());
+	    dir.assign(d0.begin(),d0.end());
 
 	    NrmGi = 0;
 
@@ -565,7 +565,7 @@ int SubGradSolver::compute(bool changedvars) {
 			            // then the direction vector is kept- - - - - - - - - - - - - - - - - - - -
 
 			            if( stepsize->NeedsdkM1Gk() && ( ! deflection ) )
-			             dir.swap(Gi);
+			             dir.assign(Gi.begin(),Gi.end());
 
 
 			            // direction log: print the information relative to DIR   - - - - - - - - -
@@ -1459,7 +1459,7 @@ void SubGradSolver::ChgLambdaHat(void) {
 
 	 if( alpha == 1 ) {
 	  HatEpsilon = SigmaHat;
-	  LambdaHat.swap(Lambda);
+	  LambdaHat.assign(Lambda.begin(),Lambda.end());
 	  FiHat = FiLambda;
 	  }
 	 else {
@@ -1486,8 +1486,8 @@ void SubGradSolver::ChgLambdaHat(void) {
 
 	  // g := x1 * g1 + x2 * g2
 	  Function::Vec_FunctionValue p_v,p_v1;
-	  p_v.swap(Lambda);
-	  p_v1.swap(LambdaHat);
+	  p_v.assign(Lambda.begin(),Lambda.end());
+	  p_v1.assign(LambdaHat.begin(),LambdaHat.end());
 
 	  std::transform(p_v.begin(), p_v.end(), p_v.begin(),
 					 std::bind1st(std::multiplies<double>(), alpha)); // x1 * g1
@@ -1845,10 +1845,9 @@ void SubGradSolver::FiAndGi(const Variable::Index wFi) {
 	 if( LHasChgd ) {  // if Lambda1 has changed, set the new one to the Oracle
 
 
-	  int idl=-1;
+	  auto iL=Lambda.begin();
 	  for(auto l : LamVcblr){
-		  auto lc= dynamic_cast<ColVariable*>(l);
-		  lc->set_value(Lambda[idl++]);
+		  auto lc= static_cast<ColVariable*>(l)->set_value(*(iL++));
 	  }
 
 	  //Oracle->SetLambda( Lambda );
@@ -1881,7 +1880,7 @@ void SubGradSolver::FiAndGi(const Variable::Index wFi) {
 	  if( FiLambda < FiBest ) {
 	   FiBest = FiLambda;
 	   if( KpBstL )
-		   LambdaBest.swap(Lambda);
+		   LambdaBest.assign(Lambda.begin(),Lambda.end());
 
 	   }
 	  }  // end( function evaluation - - - - - - - - - - - - - - - - - - - - - - -
@@ -1922,7 +1921,7 @@ void SubGradSolver::GotoLambda1(void) {
 	 // move Lambda to LambdaBar= - - - - - - - - - - - - - - - - - - - - - - - -
 	 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-	 LambdaBar.swap(Lambda);
+	 LambdaBar.assign(Lambda.begin(),Lambda.end());
 	 //VectAssign( LambdaBar , Lambda , NumVar );
 	 if( ! InnIter )
 	  FiBar = FiLambda;
@@ -1980,13 +1979,13 @@ void SubGradSolver::SaveDir(void) {
 	  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 	  if( alpha == 1 )
-		  dir.swap(Gi);
+		  dir.assign(Gi.begin(),Gi.end());
 
 	  else{
 		  // g := x1 * g1 + x2 * g2
 		  Function::Vec_FunctionValue p_v,p_v1;
-		  p_v.swap(Gi);
-		  p_v1.swap(dir);
+		  p_v.assign(Gi.begin(),Gi.end());
+		  p_v1.assign(dir.begin(),dir.end());
 
 		  std::transform(p_v.begin(), p_v.end(), p_v.begin(),
 						 std::bind1st(std::multiplies<double>(), alpha)); // x1 * g1
