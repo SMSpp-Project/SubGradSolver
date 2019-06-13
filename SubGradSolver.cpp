@@ -20,6 +20,14 @@ using namespace SMSpp_di_unipi_it;
 
 
 /*--------------------------------------------------------------------------*/
+/*-------------------------------- MACROS ----------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+
+#define VLOG( l , x ) if( LogVerb > l ) *f_log << x
+#define VLOG2( l , c , x ) if( ( LogVerb > l ) && c ) *f_log << x
+
+/*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -78,10 +86,7 @@ const std::vector<double> SubGradSolver::dflt_dbl_par =
 /*--------------------------------------------------------------------------*/
 
 
-#if ! SubGrad_HANDLES_CONSTRAINTS
- #define MaxName 3
- #define MaxNCnst 0
-#endif
+
 
 
 /*--------------------------------------------------------------------------*/
@@ -128,35 +133,13 @@ SubGradSolver::SubGradSolver() {
 	srand( KSGPar5 );
 
 
-
-
-
-	 //if( SGPar2 < 0 )
-
-	//	 this->set_par(this->dbl_par_str2idx("SGPar2"),double(0));
-
+	//can this param go below zero??????
+	if( KSGPar2 < 0 )
+		 this->set_par(this->dbl_par_str2idx("SGPar2"),double(0));
 
 	 // some initializations - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-//stepsize = nullptr;
-	 //deflection = nullptr;
-	 //Lambda = LambdaHat = LambdaBest = nullptr;
-	 //Gi = dir = nullptr;
-	//lb =- Inf<double>();
-	//ub = double (0);
-
-//	 #if SubGrad_HANDLES_CONSTRAINTS
-//	  MaxNCnst = 0;
-//	  Q2KNP = nullptr;
-//	  CnstBeg = nullptr;
-//	  CnstVol = nullptr;
-//	  CnstNxt = nullptr;
-//	 #endif
-
 	 KpBstL = false;
 	 LHasChgd = true;  // LHasChgd will be again set to true by FormLambda1
-
-
 
 }
 
@@ -164,6 +147,12 @@ SubGradSolver::~SubGradSolver() {
 	// TODO Auto-generated destructor stub
 }
 
+
+
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
 
 
 void SubGradSolver::set_Block(Block* block) {
@@ -206,14 +195,19 @@ void SubGradSolver::set_Block(Block* block) {
 	   // the objective function of each block must be a LinearFunction - - - - - -
 	   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-	   auto obj = boost::any_cast<FRealObjective *>( f_Block->get_objective() );
-	   if( obj == nullptr )
-	    throw( std::logic_error( "the objective is not a real function" ) );
+		  if( f_Block->get_objective().empty() )
+		     lf =  nullptr;
 
-	   lf = dynamic_cast<LinearFunction *>( (obj)->get_function() );
-	   if( lf == nullptr )
-	    throw( std::logic_error( "the objective is not a LinearFunction" ) );
+		  else {
 
+			   auto obj = boost::any_cast<FRealObjective *>( f_Block->get_objective() );
+			   if( obj == nullptr )
+				throw( std::logic_error( "the objective is not a real function" ) );
+			   lf = dynamic_cast<LinearFunction *>( (obj)->get_function() );
+			   if( lf == nullptr )
+				throw( std::logic_error( "the objective is not a LinearFunction" ) );
+
+		  }
 	   auto sb = f_Block->get_nested_Blocks();
 	   v_c05f.resize( sb.size() );
 
@@ -298,39 +292,27 @@ void SubGradSolver::set_Block(Block* block) {
 
 
 
-	  //setfi
+	  //setfiorcale///////////////////////////////
 
-	  //MemDealloc();  // deallocate memory
+	  MemDealloc();  // deallocate memory
 
+	  std::vector<Variable::Index> BNC( v_c05f.size() );
 
-	  MaxNumVar = NumVar;//Oracle->GetMaxNumVar();
-
-
-	//nella mail dice che a simone non interessano
-	//if( NrFi > 1 )
-	     //for( Variable::Index k = 0 ; k++ < NrFi ; )
-	      //if( Oracle->GetBNC( k ) )
-	       //throw( NDOException(
-	  	//	   "SubGrad::SetFiOracle: easy component not allowed yet" ) );
+	  if( v_c05f.size() > 1 )
+	     for( Variable::Index k = 0 ; k++ < v_c05f.size() ; )
+	      if( BNC[k] )
+	       throw( std::logic_error(
+	  		   "SubGradSolver easy component not allowed yet" ) );
 
 	    // allocate memory - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		std::vector<double> vd0(MaxNumVar,0);
-	    LambdaBar.assign(vd0.begin(),vd0.end()); //= new std::vector<double>(MaxNumVar) LMNum[ MaxNumVar ];                // stability center
+
+	    LambdaBar.assign(NumVar,double(0));
+	    Lambda.assign(NumVar,double(0));
 
 
-
-	   // VectAssign( LambdaBar , LMNum( 0 ) , MaxNumVar );  // default = 0
-
-	    //std::vector<double> vd0(MaxNumVar,0);
-	    Lambda.assign(vd0.begin(),vd0.end());
-	    //Lambda = new LMNum[ MaxNumVar ];                   // tentative point
-	    //VectAssign( Lambda , LMNum( 0 ) , MaxNumVar );     // default = 0
-
-	    if( KpBstL ){
-	    	std::vector<double> vd0(MaxNumVar,0);
-	    	LambdaBest.assign(vd0.begin(),vd0.end());           // best point so far
-	    }
+	    if( KpBstL )
+	    	LambdaBest.assign(NumVar,double(0));           // best point so far
 	    else
 	     LambdaBest.clear();
 
@@ -341,54 +323,34 @@ void SubGradSolver::set_Block(Block* block) {
 
 	    // allocate memory for the subgrads and the direction - - - - - - - - - - -
 	    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+
 	    // The direction will be allocated after either Deflection will have been
 	    // defined or changed [see InitDeflection()]. Instead, the subgradient is
 	    // considered separately from the deflection and it will keep on having the
 	    // same values after any deflection update.
-	    std::vector<double> g0(MaxNumVar,0);
-	    std::vector<double> d0(MaxNumVar,0);
-	    Gi.assign(d0.begin(),d0.end());
-	    dir.assign(d0.begin(),d0.end());
+
+	    Gi.assign(NumVar,double(0));
+	    dir.assign(NumVar,double(0));
 
 	    NrmGi = 0;
 
 	    // allocate memory for box constraints- - - - - - - - - - - - - - - - - - -
 	    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+	    AllocateUBLB( 0 , NumVar );
+//
 
 
-	    ///////to DOOOOOO
-//	    AllocateUBLB( 0 , NumVar );
-//
-//	    // allocate memory for disjoint simplex constraints - - - - - - - - - - - -
-//	    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-//
-//	    #if ! SubGrad_HANDLES_CONSTRAINTS
-//	     if( Oracle->MaxNConst() )
-//	      throw( NDOException( "SubGrad::SetFiOracle: non-box constraints allowed"
-//	  			  ) );
-//	    #else
-//	     MaxNCnst = Oracle->MaxNConst();
-//
-//	     if( MaxNCnst ) {
-//	      CnstBeg = new Index[ MaxNCnst ];
-//	      CnstNxt = new SIndex[ MaxNumVar ];
-//	      CnstVol = new HpNum[ MaxNCnst ];
-//	      VectAssign( CnstBeg , Index( Inf<Index>() ) , MaxNCnst );
-//	      VectAssign( CnstNxt , SIndex(-1) , MaxNCnst );
-//	      MaxName = MaxNCnst + 3;
-//	      }
-//	     else
-//	      MaxName = 3;
-//	    #endif
+
+	    //?????????????????????????
 //
 //	    ReSetAlg( RstCrr | RstSbg | RstCnt );
 //
 //	    // tell the oracle about the NDOSolver and its settings - - - - - - - - - -
 //	    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-//
-//	    Oracle->SetNDOSolver( this );
-//	    Oracle->SetMaxName( MaxName );
+
+	   /////// ????????
 //	    Oracle->SetPrecision( EInit );
 //
 //	    // warning: the following things can only be done *after* that
@@ -396,15 +358,15 @@ void SubGradSolver::set_Block(Block* block) {
 //	    // oracle which depends on knowledge of the MaxName to work properly
 //	    // insert the constant subgradient of the 0-th component - - - - - - - - - -
 //
-//	    MultBse = new Index[ 2 ];
-//	    MultBse[ 1 ] = Inf<Index>();
+	    std::vector<Variable::Index> MultBse( 2 );
+	    MultBse[ 1 ] = Inf<Variable::Index>();
 //
 //	    // asking the projection of both DirM1 and and Gi implies the automatic
 //	    // projection of dir- - - - - - - - - - - - - - - - - - - - - - - - - - - -
 //	    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 //
-//	    if( ( SGPar1 & PrjDIRM1 ) && ( SGPar1 & PrjSG ) )
-//	     SGPar1 &= ~PrjDIR;
+	    if( ( KSGPar1 & PrjDIRM1 ) && ( KSGPar1 & PrjSG ) )
+	     KSGPar1 &= ~PrjDIR;
 //
 //	    // checking for 0-th component - - - - - - - - - - - - - - - - - - - - - - -
 //	    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -412,25 +374,37 @@ void SubGradSolver::set_Block(Block* block) {
 //	    cIndex_Set SG0Bse;
 //	    cIndex SG0BDm = Oracle->GetGi( Gi , SG0Bse , MaxName );
 //
-//	    ZeroComp = SG0BDm > 0;
-//	    SubGrad::SetPar( SubGrad::kSGPar2 , SGPar2 );
+	    // if the case of when the 0-th component is a linear function
+	    std::vector<double> SG0Bse(NumVar);
+	    ZeroComp=false;
+	    if(lf){
+			  lf->get_linearization_coefficients(SG0Bse.data());
+			  std::transform (Gi.begin(), Gi.end(), SG0Bse.begin(), Gi.begin(), std::plus<double>());
+			  ZeroComp=true;
+	    }
+
+
+	    this->set_par( SubGradSolver::dblSGPar2 , KSGPar2 );
 //	    // initialization of data structures for incremental done there inside
 //
 //	    // initialize HatLambda  - - - - - - - - - - - - - - - - - - - - - - - - - -
 //	    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 //
-//	    if( SGPar4 ) {
-//	     LambdaHat = new LMNum[ MaxNumVar ];
-//	     VectAssign( LambdaHat , LMNum( 0 ) , MaxNumVar );
-//	     }
-//	    else
-//	     LambdaHat = nullptr;
-//
-//	    FiHat = 0;     // Fi( HatLambda ) is not known
+	    if( KSGPar4 ) {
+	     LambdaHat.assign(NumVar,0);
+	     }
+	    else
+	     LambdaHat.clear();
+
+	    FiHat = 0;     // Fi( HatLambda ) is not known
 //
 //	    // initialize both stepsize and deflection solvers - - - - - - - - - - - - -
 //	    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-//
+
+
+
+	    //???????????
+
 //	    if( stepsize )
 //	     InitStepsize();
 //
@@ -438,16 +412,16 @@ void SubGradSolver::set_Block(Block* block) {
 //
 //	    // other initializations- - - - - - - - - - - - - - - - - - - - - - - - - -
 //
-//	    fs = FiOracle::kFiNorm;
-//	    EmptySet = false;       // the feasible set is not empty
+	    fs = kFiNorm;
+	    EmptySet = false;       // the feasible set is not empty
 //
 //	    } // end if( Fi )
 //	   else {  // setting a null FiOracle
-//	    if( deflection )
-//	     deflection->Format();
+	    if( deflection )
+	     deflection->Format();
 //
-//	    if( stepsize )
-//	     stepsize->Format();
+	    if( stepsize )
+	    	stepsize->Format();
 //	    }
 
 
@@ -459,7 +433,7 @@ void SubGradSolver::set_log(std::ostream* log_stream) {
 	 Solver::set_log(log_stream);
 
 	 *f_log << std::endl << "SubGrad Solver: Vars = " << "NumVar" << " ("
-	 	   << MaxNumVar << ") ~  NItIncr = " << NItIncr <<  " ~ EpsLin = "
+	 	   << NumVar << ") ~  NItIncr = " << NItIncr <<  " ~ EpsLin = "
 	 	   << EpsLin << " ~ FiEps = " << "EInit" << " ~ t* = " << tStar;
 
 	    *f_log << std::endl << " SGParameters = ( " << KSGPar1 << " ~ " << KSGPar2
@@ -578,7 +552,7 @@ int SubGradSolver::compute(bool changedvars) {
 
 			            if( step <= 1e-8 * tStar ) {
 			             CSmallStep++;
-			             if( CSmallStep > ( ( NItIncr > 0 )? 100 * NrFi : 100 ) ) {
+			             if( CSmallStep > ( ( NItIncr > 0 )? 100 * v_c05f.size() : 100 ) ) {
 			              Result = kStopIter;
 			              break;
 			              }
@@ -620,7 +594,7 @@ int SubGradSolver::compute(bool changedvars) {
 			           Variable::Index comp;
 			           if( InnIter ) {  // if it is the first component, re-shuffle the vector
 			            comp = ( ( GiEvaltns % ( NItIncr + 1 ) ) - 1 ) %
-			                     ( ZeroComp? NrFi + 1 : NrFi );
+			                     ( ZeroComp? v_c05f.size() + 1 : v_c05f.size() );
 			            if( ! comp )
 			             std::random_shuffle( Seq.begin() , Seq.end() , myrandom );
 			            comp = Seq.at( comp );
@@ -712,7 +686,7 @@ int SubGradSolver::compute(bool changedvars) {
 
 			            if( deflection ) {
 			             double Mlt = 0;
-			             Variable::Index NmSt = MaxNCnst;
+			             //Variable::Index NmSt = MaxNCnst;
 
 
 			             C05Function::LinearCombination lc({std::make_pair(0,Mlt)});
@@ -803,27 +777,10 @@ int SubGradSolver::compute(bool changedvars) {
 
 //}
 
-void SubGradSolver::get_var_solution(Configuration* solc) {
-}
-
-void SubGradSolver::get_dual_solution(Configuration* solc) {
-
-	for( Variable::Index i = 0 ; i < zA.size() ; ++i ) {
-	  if( zA[i].second.empty() )
-	   throw( std::invalid_argument( "the combination is not present" ) );
-	 // v_c05f[ i ]->set_important_linearization( zA[i].first );
-	  }
-
-}
 
 
 
 
-//
-//
-//void SubGradSolver::SetDeflection(Deflection* Vol) {
-//}
-//
 
 
 
@@ -1032,50 +989,9 @@ void SubGradSolver::setConfdeflection(Configuration*& confdeflection)  {
 
 
 
-void SubGradSolver::SetStepsize(Stepsize* STP) {
 
-//	if( stepsize ) {
-//	  // if the Stepsize and Deflection objects are actually the same, ensure
-//	  // it is not deleted twice
-//	  auto StpDef = dynamic_cast<Deflection *>( stepsize );
-//	  delete stepsize;
-//	  if( ! StpDef )
-//	   deflection = nullptr;
-//	  }
-//
-//	 stepsize = STP;
-//
-//	 if( stepsize && Oracle )
-//	  InitStepsize();
 
-}
 
-void SubGradSolver::SetDeflection(Deflection* Vol) {
-	if( deflection ) {
-	  // if the Stepsize and Deflection objects are actually the same, ensure
-	  // it is not deleted twice
-	  auto StpDef = dynamic_cast<Stepsize *>( deflection );
-	  delete deflection;
-	  if( ! StpDef )
-	   stepsize = nullptr;
-	  }
-
-	 deflection = Vol;
-
-	 if( ! v_c05f.empty() )
-	  InitDeflection();
-	 else
-	  alpha = 1;
-}
-
-void SubGradSolver::SetFiOracle(C05Function* Fi) {
-}
-
-void SubGradSolver::SetLambda(std::vector<double> tLambda) {
-}
-
-void SubGradSolver::KeepBestLambda(const bool KBL) {
-}
 
 void SubGradSolver::setConfstepsize( Configuration*& confstepsize) {
 	this->confstepsize = confstepsize;
@@ -1084,186 +1000,107 @@ void SubGradSolver::setConfstepsize( Configuration*& confstepsize) {
 
 
 
-Function::Vec_FunctionValue SubGradSolver::ReadBestSol(const std::vector<Variable::Index> &I , Variable::Index &D ) {
-
-	//I = nullptr;
-	D = NumVar;
-	return( KpBstL ? LambdaBest : LambdaBar );
-
-}
-
-Function::FunctionValue SubGradSolver::ReadBestFiVal(Variable::Index wFi) {
-
-	if( wFi!= Inf<double>() )
-	  std::logic_error( "SubGrad::ReadBestFiVal: wFi != INF" );
-
-	 return( FiBest );
-
-}
-
-Function::Vec_FunctionValue SubGradSolver::ReadSol(
-		const std::vector<Variable::Index> &I , Variable::Index &D) {
-	//I = nullptr;
-	 D = NumVar;
-	 return( LambdaBar );
-
-}
-
-Function::FunctionValue SubGradSolver::ReadFiVal( Variable::Index wFi ) {
-
-	if( wFi!= Inf<Variable::Index>() )
-	  std::logic_error( "SubGrad::ReadFiVal: wFi != INF"  );
-
-	 return( FiBar );
-
-
-}
-
-Function::FunctionValue SubGradSolver::ReadHatFiVal(void) {
-
-	if( intSGPar4 )
-	  return( FiHat );
-	 else
-	  return( Inf<double>() );
-
-}
 
 
 
-const Function::FunctionValue* SubGradSolver::ReadMult( Variable::Index &I , Variable::Index &D , Variable::Index wFi ) {
 
-//	if( wFi!= Inf<Variable::Index>() )
-//	  std::logic_error( "SubGrad::ReadBestFiVal: wFi != INF" );
-//
-//	 if( FiBar < Inf<double>() ) {
-//	  if( deflection )
-//	    MultBse= ( DirPos == first ) ? ( MaxNCnst + 2 ) : ( MaxNCnst + 1 );
-//	  else
-//	   MultBse = MaxNCnst;
-//
-//	  I = MultBse;
-//	  D = 1;
-//	  return( & Multplier );
-//	  }
-//	 else {
-//	 // I = nullptr;
-//	  D = 0;
-//	  return( 0 );
-//	  }
 
-}
-
-const  Function::FunctionValue  SubGradSolver::ReadLBMult(const Variable::Index wFi) {
-
-	if( wFi!= Inf<Variable::Index>() )
-	   std::logic_error( "SubGrad::ReadBestFiVal: wFi != INF" );
-
-	 return( 0 );
-
-}
-
-Variable::Index SubGradSolver::NrIter(void) const {
-	return( ParIter );
-
-}
-
-const double SubGradSolver::ReadFVal( void){
-
-	return FiLambda;
-
-}
 
 void SubGradSolver::AllocateUBLB(const Variable::Index strt,
 		const Variable::Index num) {
 
 //to do
-//	std::vector<double> newp(num);
-//	std::vector<double> tub = ub ? ub + strt : newp;
-//	 LMRow tlb = lb.empty() ? lb + strt : new LMNum[ num ];
-//	 VectAssign( tlb , - Inf<LMNum>() , num );
+
+	std::vector<double> newp(num);
+	std::vector<double> ub_p(ub.size()+strt);
+	std::vector<double> lb_p(lb.size()+strt);
+	std::vector<double> tub = ub.empty() ? ub_p  : newp;
+	std::vector<double> tlb;// = lb.empty() ? lb_p : newp;
+
+	tlb.assign(num,- Inf<double>());
+
 //
-//	 bool LBc = lb;
-//	 bool UBc = ub;
+	bool LBc = lb.empty();
+	bool UBc = ub.empty();
 //
-//	 Index i = 0;
-//	 if( ( ! LBc ) && ( ! UBc ) )
-//	  for( ; i < num ; ++i ) {
-//	   if( ! Oracle->GetUC( strt + i ) ) {
-//	    tlb[ i ] = 0;
-//	    LBc = true;
-//	    }
+	 Variable::Index i = 0;
+	 if( ( ! LBc ) && ( ! UBc ) )
+	  for( ; i < num ; ++i ) {
+	   if( static_cast<ColVariable*>(LamVcblr[i])->is_negative()) {
+	    tlb[ i ] = 0;
+	    LBc = true;
+	    }
+
+	   if( ( tub[ i ] = static_cast<ColVariable*>(LamVcblr[i])->get_ub() ) < Inf<double>() )
+	    UBc = true;
+
+	   if( LBc || UBc )
+	    break;
+	   }
 //
-//	   if( ( tub[ i ] = Oracle->GetUB( strt + i ) ) < Inf<LMNum>() )
-//	    UBc = true;
+	 if( LBc && ( ! UBc ) )
+	  for( ; i < num ; ++i ) {
+		   if( static_cast<ColVariable*>(LamVcblr[i])->is_negative())
+			  tlb[ i ] = 0;
+
+			  if( ( tub[ i ] = static_cast<ColVariable*>(LamVcblr[i])->get_ub() ) < Inf<double>() )
+			UBc = true;
+
+		   if( UBc )
+			break;
+	   }
+
+	 if( ( ! LBc ) && UBc )
+	  for( ; i < num ; ++i ) {
+		  if( static_cast<ColVariable*>(LamVcblr[i])->is_negative()) {
+			  tlb[ i ] = 0;
+			  LBc = true;
+	    }
+
+	   tub[ i ] = static_cast<ColVariable*>(LamVcblr[i])->get_ub();
+
+	   if( LBc )
+	    break;
+	   }
 //
-//	   if( LBc || UBc )
-//	    break;
-//	   }
+	 for( ; i < NumVar ; i++ ) {
+		 if( static_cast<ColVariable*>(LamVcblr[i])->is_negative())
+			 tlb[ i ] = 0;
+	  tub[ i ] = static_cast<ColVariable*>(LamVcblr[i])->get_ub();
+	  }
+
+	 if( ( ! lb ) && LBc ) {
+	  if( ( strt == 0 ) && ( num == NumVar ) )
+	   lb = tlb;
+	  else {
+	   lb.assign(NumVar+strt,- Inf<double>());
+	   lb.assign(tlb.begin(),tlb.begin()+num);
+
+	   tlb.clear();
+	   }
+	  }
 //
-//	 if( LBc && ( ! UBc ) )
-//	  for( ; i < num ; ++i ) {
-//	   if( ! Oracle->GetUC( strt + i ) )
-//	    tlb[ i ] = 0;
-//
-//	   if( ( tub[ i ] = Oracle->GetUB( strt + i ) ) < Inf<LMNum>() )
-//	    UBc = true;
-//
-//	   if( UBc )
-//	    break;
-//	   }
-//
-//	 if( ( ! LBc ) && UBc )
-//	  for( ; i < num ; ++i ) {
-//	   if( ! Oracle->GetUC( strt + i ) ) {
-//	    tlb[ i ] = 0;
-//	    LBc = true;
-//	    }
-//
-//	   tub[ i ] = Oracle->GetUB( strt + i );
-//
-//	   if( LBc )
-//	    break;
-//	   }
-//
-//	 for( ; i < NumVar ; i++ ) {
-//	  if( ! Oracle->GetUC( strt + i ) )
-//	   tlb[ i ] = 0;
-//	  tub[ i ] = Oracle->GetUB( strt + i );
-//	  }
-//
-//	 if( ( ! lb ) && LBc ) {
-//	  if( ( strt == 0 ) && ( num == MaxNumVar ) )
-//	   lb = tlb;
-//	  else {
-//	   lb = new LMNum[ MaxNumVar ];
-//	   cLMNum dflt = - Inf<LMNum>();
-//	   VectAssign( lb , dflt , strt );
-//	   VectAssign( lb + strt , tlb , num );
-//	   delete[] tlb;
-//	   }
-//	  }
-//
-//	 if( ( ! ub ) && UBc ) {
-//	  if( ( strt == 0 ) && ( num == MaxNumVar ) )
-//	   ub = tub;
-//	  else {
-//	   ub = new LMNum[ MaxNumVar ];
-//	   cLMNum dflt = Inf<LMNum>();
-//	   VectAssign( ub , dflt , strt );
-//	   VectAssign( ub + strt , tub , num );
-//	   delete[] tub;
-//	   }
-//	  }
+	 if( ( ! ub ) && UBc ) {
+	  if( ( strt == 0 ) && ( num == NumVar ) )
+	   ub = tub;
+	  else {
+	   ub.assign(NumVar+strt,Inf<double>());
+	   ub.assign(NumVar+strt,- Inf<double>());
+	   ub.assign(tub.begin(),tub.begin()+num);
+
+	   tub.clear();
+	   }
+	  }
 
 
 }
 
 double SubGradSolver::lbnd(const Variable::Index i) {
-	//return( lb ? lb[ i ] : - Inf<double>() );
+	return( lb ? lb[ i ] : - Inf<double>() );
 }
 
 double SubGradSolver::ubnd(const Variable::Index i) {
-	//return( ub ? ub[ i ] : Inf<double>() );
+	return( ub ? ub[ i ] : Inf<double>() );
 }
 
 void SubGradSolver::EvalGi(Variable::Index wFi) {
@@ -1271,7 +1108,7 @@ void SubGradSolver::EvalGi(Variable::Index wFi) {
 	 // some exception - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-	 if( wFi > NrFi )
+	 if( wFi > v_c05f.size() )
 	  wFi = Inf<Variable::Index>();
 
 //?????????????????????
@@ -1446,11 +1283,7 @@ void SubGradSolver::ProjTng(std::vector<double> Gpt, std::vector<double> Lpt,
 	      Gpt[ j ] = 0;
 }
 
-void SubGradSolver::InitStepsize(void) {
-}
 
-void SubGradSolver::InitDeflection(void) {
-}
 
 void SubGradSolver::ChgLambdaHat(void) {
 
@@ -1885,13 +1718,9 @@ void SubGradSolver::FiAndGi(const Variable::Index wFi) {
 	   }
 	  }  // end( function evaluation - - - - - - - - - - - - - - - - - - - - - - -
 
-	 // if Lambda is unfeasible, a new subgradient is computed; otherwise a new
-	 // constraint is added - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	 //  a new constraint is added - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-	 //if( FiLambda == Inf<double>() )  // it is a constraint
-	 // #if SubGrad_HANDLES_CONSTRAINTS
-	 // #endif
-	 //else
+
 	  EvalGi( wFi );  // the item is a subgradient
 
 
@@ -1952,6 +1781,27 @@ void SubGradSolver::MemDealloc(void) {
 	 dir.clear();
 
 	 //MultBse
+
+}
+
+bool SubGradSolver::has_var_solution(void) {
+}
+
+bool SubGradSolver::has_dual_solution(void) {
+}
+
+bool SubGradSolver::new_var_solution(void) {
+}
+
+bool SubGradSolver::new_dual_solution(void) {
+}
+
+void SubGradSolver::get_var_solution(Configuration* solc) {
+}
+
+void SubGradSolver::get_dual_solution(Configuration* solc) {
+
+
 
 }
 
