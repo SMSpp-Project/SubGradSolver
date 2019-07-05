@@ -1797,11 +1797,29 @@ bool SubGradSolver::new_dual_solution(void) {
 }
 
 void SubGradSolver::get_var_solution(Configuration* solc) {
+
 }
 
 void SubGradSolver::get_dual_solution(Configuration* solc) {
 
+	std::pair < C05Function::LinearizationName , C05Function::FunctionValue > n;
+	//ho tre vettori io ti dicolo quale è il sub grad aggregato
 
+	for( Variable::Index i = 0 ; i < v_c05f.size() ; ++i ) {
+
+	  if( deflection )
+		 n= ( DirPos == first ? std::make_pair(2,1) : std::make_pair(1,1));
+	   // *MultBse = ( DirPos == first ) ? ( MaxNCnst + 2 ) : ( MaxNCnst + 1 );
+	   else
+		   n=  std::make_pair(0,1);
+
+
+	  C05Function::LinearCombination vn;
+
+	  vn.insert(n);
+
+	  v_c05f[ i ]->set_important_linearization( vn, n.first );
+	  }
 
 }
 
