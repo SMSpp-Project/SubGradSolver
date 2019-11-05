@@ -11,9 +11,7 @@ cmake_minimum_required(VERSION 3.8...3.15)
 project(SubGradSolver VERSION 1.0.0 LANGUAGES CXX)
 
 # ----- Settings ------------------------------------------------------------ #
-if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-    enable_testing()
-endif()
+include(CTest)
 
 # ----- Requirements -------------------------------------------------------- #
 find_package(SMSpp REQUIRED)
@@ -90,8 +88,7 @@ install(FILES
 # This is needed so other projects can find the library in a local build.
 # It does not affect installation.
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CMAKE_EXPORT_PACKAGE_REGISTRY ON)
+if (CMAKE_EXPORT_PACKAGE_REGISTRY)
 
     export(EXPORT SubGradSolver-targets
            FILE ${CMAKE_CURRENT_BINARY_DIR}/SubGradSolverTargets.cmake
@@ -102,4 +99,6 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif ()
 
 # ----- Subdirectories ------------------------------------------------------ #
-add_subdirectory(test)
+if (BUILD_TESTING)
+    add_subdirectory(test)
+endif()
