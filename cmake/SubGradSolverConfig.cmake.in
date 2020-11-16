@@ -21,8 +21,8 @@ include(CMakeFindDependencyMacro)
 find_dependency(SMSpp)
 
 # ----- Import target ------------------------------------------------------- #
-if(NOT TARGET SMS++::SMILPBlock)
+if (NOT TARGET SMS++::SubGradSolver)
     include("${SubGradSolver_CMAKE_DIR}/SubGradSolverTargets.cmake")
-endif()
+endif ()
 
 set(SubGradSolver_LIBRARIES SMS++::SubGradSolver)
