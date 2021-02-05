@@ -21,7 +21,7 @@
 # --------------------------------------------------------------------------- #
 cmake_minimum_required(VERSION 3.11)
 project(SubGradSolver
-        VERSION 0.2.0
+        VERSION 0.3.0
         DESCRIPTION "SMS++ SubGradSolver module"
         HOMEPAGE_URL https://gitlab.com/smspp/subgradsolver
         LANGUAGES C CXX)
