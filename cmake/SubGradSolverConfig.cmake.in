@@ -14,15 +14,15 @@
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
-get_filename_component(SubGradSolver_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+get_filename_component(@modName@_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
 include(CMakeFindDependencyMacro)
 
 # ----- Requirements -------------------------------------------------------- #
-find_dependency(SMSpp REQUIRED)
+find_dependency(SMSpp)
 
 # ----- Import target ------------------------------------------------------- #
-if(NOT TARGET SMS++::SMILPBlock)
-    include("${SubGradSolver_CMAKE_DIR}/SubGradSolverTargets.cmake")
+if (NOT TARGET @modNamespace@::@modName@)
+    include("${@modName@_CMAKE_DIR}/@modName@Targets.cmake")
 endif()
 
-set(SubGradSolver_LIBRARIES SMS++::SubGradSolver)
+set(@modName@_LIBRARIES @modNamespace@::@modName@)
