@@ -124,7 +124,7 @@ using idx_type=ThinComputeInterface::idx_type;
 /*--------------------------------------------------------------------------*/
 /** The method initializes the DR. It does nothing for the base class. */
 
-   virtual void Format( void );
+   virtual void Format( void ) {};
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- METHODS FOR DEFLECTION COMPUTATION ------------------*/
