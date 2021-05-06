@@ -2,79 +2,68 @@
 ################################ makefile ####################################
 ##############################################################################
 #                                                                            #
-#   makefile of NDOBlock / SubGradSolver                                         #
+#   makefile of SubGradSolver                                                #
 #                                                                            #
 #   The makefile takes in input the -I directives for all the external       #
-#   libraries needed by NDOBlock / SubGradSolver, i.e., core SMS++ and           #
-#   SUBGRADClass. These are *not* copied into $(SUBGRADBkINC): adding those -I       #
-#   directives to the compile commands will have to done by whatever "main"  #
-#   makefile is using this. Analogously, any external library and the        #
-#   corresponding -L< libdirs > will have to be added to the final linking   #
-#   command by  whatever "main" makefile is using this.                      #
+#   libraries needed by SubGradSolver, i.e., core SMS++.                     #
 #                                                                            #
 #   Note that, conversely, $(SMS++INC) is also assumed to include any        #
 #   -I directive corresponding to external libraries needed by SMS++, at     #
 #   least to the extent in which they are needed by the parts of SMS++       #
-#   used by NDOBlock / SubGradSolver.                                            #
+#   used by SubGradSolver.                                                   #
 #                                                                            #
 #   Input:  $(CC)          = compiler command                                #
 #           $(SW)          = compiler options                                #
 #           $(SMS++INC)    = the -I$( core SMS++ directory )                 #
 #           $(SMS++OBJ)    = the core SMS++ library                          #
-#           $(libSUBGRADClINC) = the -I$( SUBGRADClass library )                     #
-#           $(libSUBGRADClOBJ) = the SUBGRADClass library                            #
-#           $(SUBGRADBkSDR)  = the directory where the source is                 #
+#           $(SBGSLVSDR)   = the directory where the source is               #
 #                                                                            #
-#   Output: $(SUBGRADBkOBJ) = the final object(s) / library                      #
-#           $(SUBGRADBkH)   = the .h files to include                            #
-#           $(SUBGRADBkINC) = the -I$( source directory )                        #
+#   Output: $(SBGSLVOBJ)   = the final object(s) / library                   #
+#           $(SBGSLVH)     = the .h files to include                         #
+#           $(SBGSLVINC)   = the -I$( source directory )                     #
+#           $(SBGSLVDSH) = the .h files to include for the Deflection and    #
+#                         Stepsize components of SubGradSolver		     #
 #                                                                            #
-#                                VERSION 2.00                                #
-#                               13 - 11 - 2018                               #
+#                                VERSION 0.1                                 #
+#                               22 - 04 - 21                                 #
 #                                                                            #
 #                              Antonio Frangioni                             #
+#                               Enrico Gorgone 				     #
+#				Laura Fiorella		 	             #
 #                          Operations Research Group                         #
 #                         Dipartimento di Informatica                        #
 #                             Universita' di Pisa                            #
 #                                                                            #
 ##############################################################################
 
+#CC=clang++
+#CC=g++
+#SW=-std=c++17
+#SMS++INC=/usr/local/include/SMS++
+#SMS++OBJ=/usr/local/lib/libSMSpp.a
+#SBGSLVSDR=/home/pollo0397/Desktop/smspp-project/SubGradSolver/
 
-# macroes to be exported- - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-SUBGRADBkOBJ =  $(SUBGRADBkSDR)SubGradSolver.o $(SUBGRADBkSDR)Stepsize.o $(SUBGRADBkSDR)Deflection.o  $(SUBGRADBkSDR)LuckFi.o
 
 
+# macros to be exported - - - - - - - - - - - - - - - - - - - - - - - - - - -
+SBGSLVOBJ = $(SBGSLVSDR)SubGradSolver.o
 
-SUBGRADBkINC = -I$(SUBGRADBkSDR)
+SBGSLVINC = -I$(SBGSLVSDR) -I$(SBGSLVSDR)Deflection -I$(SBGSLVSDR)Stepsize 
 
-SUBGRADBkH   =  $(SUBGRADBkSDR)SubGradSolver.h  $(SUBGRADBkSDR)Stepsize.h $(SUBGRADBkSDR)Deflection.h $(SUBGRADBkSDR)LuckFi.h
+SBGSLVH = $(SBGSLVSDR)SubGradSolver.h $(SBGSLVSDR)Stepsize.h \
+$(SBGSLVSDR)Deflection.h $(SBGSLVSDR)Deflection/PrimalDual.h \
+$(SBGSLVSDR)Deflection/Volume.h $(SBGSLVSDR)Stepsize/ColorTV.h \
+$(SBGSLVSDR)Stepsize/FumeroTV.h $(SBGSLVSDR)Stepsize/Polyak.h
+
 # clean - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-clean::
-	rm -f $(SUBGRADBkOBJ) $(SUBGRADBkSDR)*~
+#clean::
+#	rm -f $(SBGSLVOBJ) $(SBGSLVSDR)*~
 
 # dependencies: every .o from its .cpp + every recursively included .h- - - -
 
-
-
-$(SUBGRADBkSDR)SubGradSolver.o: $(SUBGRADBkSDR)SubGradSolver.cpp $(SUBGRADBkH) \
-	$(SMS++OBJ) $(libSUBGRADClOBJ) 
-	$(CC) -c $*.cpp -o $@ $(SUBGRADBkINC) $(SMS++INC) $(libSUBGRADClINC) $(SW) 
-
-$(SUBGRADBkSDR)LuckFi.o: $(SUBGRADBkSDR)LuckFi.cpp $(SUBGRADBkSDR)LuckFi.h \
+$(SBGSLVSDR)SubGradSolver.o: $(SBGSLVSDR)SubGradSolver.cpp $(SBGSLVH) \
 	$(SMS++OBJ)
-	$(CC) -c $*.cpp -o $@ $(SUBGRADBkINC) $(SMS++INC) $(SW)
-
-$(SUBGRADBkSDR)Stepsize.o: $(SUBGRADBkSDR)Stepsize.cpp $(SUBGRADBkSDR)Stepsize.h \
-	$(SMS++OBJ)
-	$(CC) -c $*.cpp -o $@ $(SUBGRADBkINC) $(SMS++INC) $(SW)
-
-$(SUBGRADBkSDR)Deflection.o: $(SUBGRADBkSDR)Deflection.cpp $(SUBGRADBkSDR)Deflection.h \
-	$(SMS++OBJ)
-	$(CC) -c $*.cpp -o $@ $(SUBGRADBkINC) $(SMS++INC) $(SW)
-
-
-	
+	$(CC) -c $(SW) $*.cpp -o $@ -I$(SBGSLVSDR) -I$(SBGSLVSDR)Deflection -I$(SBGSLVSDR)Stepsize $(SMS++INC)
 
 ########################## End of makefile ###################################
