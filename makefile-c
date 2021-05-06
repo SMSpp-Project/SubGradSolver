@@ -1,32 +1,34 @@
 ##############################################################################
 ################################ makefile-c ##################################
 ##############################################################################
-#									     #
-#   complete makefile of SUBGRADBlock / SUBGRADSolver                                #
-#									     #
+#                                                                            #
+#   complete makefile of SubGradSolver                                       #
+#                                                                            #
 #   The makefile defines internally all external libraries (comprised the    #
-#   SMS++ one) required by SUBGRADBlock / SUBGRADSolver. Accordingly, all necessary  #
-#   OBJ, H, -I directives, external libraries + -L<libdirs> are added to the #
-#   corresponding SUBGRADBk* macros.                                             #
+#   SMS++ one) required by SubGradSolver. Accordingly, all necessary OBJ, H, #
+#   -I directives, external libraries + -L<libdirs> are added to the         #
+#   corresponding SBGSLV* macros.                                            #
 #                                                                            #
 #   Input:  $(CC)       = compiler command                                   #
 #           $(SW)       = compiler options                                   #
-#           $(SUBGRADBkSDR) = the directory where SUBGRADBlock / SUBGRADSolver source is #
-#           $(SUBGRADBkODR) = the directory where the objects have to be put     #
+#           $(SBGSLVSDR) = the directory where SubGradSolver source is       #
+#           $(SBGSLVODR) = the directory where the objects have to be put    #
 #                                                                            #
-#   Output: $(SUBGRADBkOBJ) = the final object(s) / library                      #
-#           $(SUBGRADBkLIB) = external libraries + -L<libdirs>                   #
-#           $(SUBGRADBkH)   = the .h files to include for SUBGRADBlock / SUBGRADSolver   #
-#           $(SUBGRADBkINC) = the -I$( SUBGRADBlock / SUBGRADSolver directory )          #
+#   Output: $(SBGSLVOBJ) = the final object(s) / library                     #
+#           $(SBGSLVLIB) = external libraries + -L<libdirs>                  #
+#           $(SBGSLVH)   = the .h files to include for SubGradSolver         #
+#           $(SBGSLVINC) = the -I$( SubGradSolver directory )                #
 #                                                                            #
-#                                VERSION 1.00                                #
-#                               19 - 09 - 2018                               #
+#                                VERSION 1.12                                #
+#                               30 - 12 - 2020                               #
 #                                                                            #
 #                              Antonio Frangioni                             #
+#                               Enrico Gorgone                               #
+#                               Laura Fiorella                               #
 #                          Operations Research Group                         #
 #                         Dipartimento di Informatica                        #
 #                             Universita' di Pisa                            #
-#									     #
+#                                                                            #
 ##############################################################################
 
 # define & include the necessary modules- - - - - - - - - - - - - - - - - - -
@@ -37,26 +39,26 @@
 # *H   is the list of all include files
 # *INC is the -I<include directories>
 
-# define input macros for SMS++ complete makefile, then include it
+# define input macros for libCPLEX library makefile, then include it
 
-SMS++SDR = $(SUBGRADBkSDR)../../git/sms_plus_plus/
-include $(SMS++SDR)lib/makefile-inc
-
-# define input macros for libSUBGRADCl complete makefile, then include it
-#libSUBGRADClDIR = $(SUBGRADBkSDR)../SUBGRADClass/
-#include $(libSUBGRADClDIR)lib/makefile-inc
+#SBGSLVSDR=/home/pollo0397/Desktop/smspp-project/SubGradSolver
 
 # include the makefile requiring all external modules in input
-include $(SUBGRADBkSDR)/makefile
+include $(SBGSLVSDR)makefile
 
 # macroes to be exported- - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-# append external -I directives to SUBGRADBkINC, SUBGRADBkOBJ and SUBGRADBkH as defined
-# by the makefile, thus the := assignment has to be used (use GNU make)
-SUBGRADBkOBJ := $(SUBGRADBkOBJ) $(libSUBGRADClOBJ) $(SMS++OBJ)
-SUBGRADBkINC := $(SUBGRADBkINC) $(SMS++INC) $(libSUBGRADClINC)
+# append external stuff defined in the other makefiles to SBGSLVOBJ,
+# SBGSLVINC and SBGSLVH, thus the := assignment has to be used (use GNU make)
+SBGSLVOBJ := $(SBGSLVOBJ) 
+SBGSLVINC := $(SBGSLVH) $(SBGSLVSDR)Stepsize.h \
+$(SBGSLVSDR)Deflection.h $(SBGSLVSDR)Deflection/PrimalDual.h \
+$(SBGSLVSDR)Deflection/Volume.h $(SBGSLVSDR)Stepsize/ColorTV.h \
+$(SBGSLVSDR)Stepsize/FumeroTV.h $(SBGSLVSDR)Stepsize/Polyak.h
+SBGSLVH:= $(SBGSLVINC) 
+ 
 
-# external libreries for SUBGRADBlock
-SUBGRADBkLIB = $(SMS++LIB) $(libSUBGRADClLIB)
+# external libreries for SubGradSolver
+#SBGSLVLIB = 
 
 ############################ End of makefile #################################
