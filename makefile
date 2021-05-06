@@ -39,16 +39,13 @@
 #CC=clang++
 #CC=g++
 #SW=-std=c++17
-#SMS++INC=/usr/local/include/SMS++
-#SMS++OBJ=/usr/local/lib/libSMSpp.a
-#SBGSLVSDR=/home/pollo0397/Desktop/smspp-project/SubGradSolver/
 
 
 
 # macros to be exported - - - - - - - - - - - - - - - - - - - - - - - - - - -
 SBGSLVOBJ = $(SBGSLVSDR)SubGradSolver.o
 
-SBGSLVINC = -I$(SBGSLVSDR) -I$(SBGSLVSDR)Deflection -I$(SBGSLVSDR)Stepsize 
+#SBGSLVINC = -I$(SBGSLVSDR) -I$(SBGSLVSDR)Deflection -I$(SBGSLVSDR)Stepsize 
 
 SBGSLVH = $(SBGSLVSDR)SubGradSolver.h $(SBGSLVSDR)Stepsize.h \
 $(SBGSLVSDR)Deflection.h $(SBGSLVSDR)Deflection/PrimalDual.h \
