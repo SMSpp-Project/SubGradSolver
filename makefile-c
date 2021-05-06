@@ -39,9 +39,6 @@
 # *H   is the list of all include files
 # *INC is the -I<include directories>
 
-# define input macros for libCPLEX library makefile, then include it
-
-#SBGSLVSDR=/home/pollo0397/Desktop/smspp-project/SubGradSolver
 
 # include the makefile requiring all external modules in input
 include $(SBGSLVSDR)makefile
