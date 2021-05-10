@@ -172,17 +172,17 @@ using idx_type=ThinComputeInterface::idx_type;
 /**@} ----------------------------------------------------------------------*/
 /*------------------------------ ACCESS TO PARAMETERS----------------------*/
 
-virtual void set_par_d(const idx_type par , const int value );
+virtual void set_par_d(const idx_type par , const int value ){};
 
-virtual void set_par_d(const idx_type par , const double value);
+virtual void set_par_d(const idx_type par , const double value){};
 
-virtual int get_int_par_d(const idx_type par);
+virtual int get_int_par_d(const idx_type par)=0;
 
-virtual double get_dbl_par_d (const idx_type par);
+virtual double get_dbl_par_d (const idx_type par)=0;
 
-virtual int get_dflt_int_par_d( const idx_type par );
+virtual int get_dflt_int_par_d( const idx_type par )=0;
 
-virtual double get_dflt_dbl_par_d( const idx_type par );
+virtual double get_dflt_dbl_par_d( const idx_type par )=0;
 
 /*--------------------------------------------------------------------------*/
 
