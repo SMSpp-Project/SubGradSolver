@@ -57,8 +57,8 @@ dblEStps 0
 
 # now all the string parameters
 # [none]
-Stepsize_name "FumeroTV"
-Deflection_name "Volume"
+Stepsize_name_par "FumeroTV"
+Deflection_name_par "Volume"
 
 0 # number of vector-of-int parameters
 

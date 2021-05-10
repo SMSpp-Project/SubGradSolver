@@ -228,6 +228,12 @@ enum dbl_par_type_SGSlv {
 	dblLastParSG
 
 		}; 
+		
+enum string_par_type_SGSlv {
+	Stepsize_name_par=CDASolver::strLastParCDAS,
+	Deflection_name_par,
+	StringLastParSG
+	};
 /*@} -----------------------------------------------------------------------*/
 /*----------------- CONSTRUCTING AND DESTRUCTING SubGradSolver --------------*/
 /*--------------------------------------------------------------------------*/
@@ -299,6 +305,9 @@ enum dbl_par_type_SGSlv {
    EFnal=dflt_dbl_par[ dblEFnalt - dblLastParCDAS ];
    EDcrs=dflt_dbl_par[ dblEDcrs - dblLastParCDAS ];
    EStps=dflt_dbl_par[ dblEStps - dblLastParCDAS ];
+   
+   Stepsize_name=dflt_str_par[Stepsize_name_par-strLastParCDAS];
+   Deflection_name=dflt_str_par[Deflection_name_par-strLastParCDAS];
  
    v_events.resize( max_event_number() );
  }
@@ -471,11 +480,9 @@ void set_par( const idx_type par , const int value ) override;
 
 void set_par( const idx_type par , const double value ) override;
  /*--------------------------------------------------------------------------*/
- /// set the deflection method
- void set_deflection (const std::string name);
+ /// set the string parameters
+ void set_par (idx_type par , std::string && value ) override;
 
- ///set the stepsize method
- void set_stepsize (const std::string name);
  /*--------------------------------------------------------------------------*/
  /// set the ostream for the SubGradSolver log
 
@@ -1141,6 +1148,9 @@ int EverykIt;      ///< periodicity of eEverykIteration events
 
  const static std::vector<double> dflt_dbl_par;
  ///< the (static const) vector of double parameters default values
+ 
+ const static std::vector<int> dflt_str_par;
+ ///< the (static const) vector of string parameters default values
 
  const static std::vector< std::string > int_pars_str;
  ///< the (static const) vector of int parameters names
@@ -1148,12 +1158,16 @@ int EverykIt;      ///< periodicity of eEverykIteration events
  const static std::vector< std::string > dbl_pars_str;
  ///< the (static const) vector of double parameters names
 
+const static std::vector< std::string > str_pars_str;
+ ///< the (static const) vector of string parameters names
  const static std::map< std::string , idx_type > int_pars_map;
   ///< the (static const) map for int parameters names
 
  const static std::map< std::string , idx_type > dbl_pars_map;
  ///< the (static const) map for double parameters names
 
+ const static std::map< std::string , idx_type > str_pars_map;
+ ///< the (static const) map for string parameters names
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

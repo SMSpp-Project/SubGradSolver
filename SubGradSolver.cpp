@@ -105,11 +105,17 @@ PrimalDual::_init PrimalDual::_initializer;
 
 // define and initialize here the vector of int parameters names
 const std::vector< std::string > SubGradSolver::int_pars_str =
-			{ "intSGPar1" , "intSGPar3" , "intSGPar4","intSGPar5", "intRstAlgPar" };
+			{ "intSGPar1" , "intSGPar3" , "intSGPar4","intSGPar5",
+			 "intRstAlgPar" };
 
 // define and initialize here the vector of double parameters names
 const std::vector< std::string > SubGradSolver::dbl_pars_str =
-			{ "dblSGPar2" ,"dbltStar", "dblEpsLin","dblEInit","dblEFnalt","dblEDcrs","dblEStps" };			
+			{ "dblSGPar2" ,"dbltStar", "dblEpsLin","dblEInit",
+			"dblEFnalt","dblEDcrs","dblEStps" };	
+			
+// define and initialize here the vector of string parameters names
+const std::vector< std::string > SubGradSolver::str_pars_str ={
+"Stepsize_name_par", "Deflection_name_par"};		
 
 // define and initialize here the map for int parameters names
 const std::map< std::string , SubGradSolver::idx_type > SubGradSolver::int_pars_map =
@@ -127,7 +133,11 @@ const std::map< std::string , SubGradSolver::idx_type > SubGradSolver::dbl_pars_
 			 { "dblEFnalt" , SubGradSolver::dblEFnalt } ,
 			 { "dblEDcrs" , SubGradSolver::dblEDcrs } ,
 			 { "dblEStps" , SubGradSolver::dblEStps } };
-
+			 
+// define and initialize here the map for string parameters names
+const std::map< std::string , SubGradSolver::idx_type > SubGradSolver::str_pars_map =
+		  { {"Stepsize_name_par", SubGradSolver::Stepsize_name_par},
+		    {"Deflection_name_par", SubGradSolver::Deflection_name_par}	};
 
 // define and initialize here the default int parameters
 const std::vector<int> SubGradSolver::dflt_int_par =
@@ -148,6 +158,13 @@ const std::vector<double> SubGradSolver::dflt_dbl_par =
 			 - 1 ,    // dblEDcrs
 			 - 1     // dblEStps
                };
+
+// define and initialize here the default string parameters
+const std::vector<int> SubGradSolver::dflt_str_par ={
+ "Volume",
+ "null"
+ };
+
 
 /*-------------------------------------------------------------------------*/
 
@@ -895,20 +912,26 @@ void SubGradSolver::set_par( const idx_type par , const double value ){
 	}
 } // end( SubGradSolver::set_par( double ) )
 
-void SubGradSolver::set_deflection(const std::string name){
-	if(name=="Volume" || name=="PrimalDual" || name=="null")
-		Deflection_name=name;
-	else
-		throw(std::invalid_argument("Deflection method not allowed"));
-} //end (SubGradSolver::set_deflection())
+void SubGradSolver::set_par( idx_type par , std::string && value  ){
+	switch(par){
+		case(Stepsize_name_par):
+			if(value=="FumeroTV" || value=="ColorTV" || value=="Polyak")
+				Stepsize_name=value;
+			else
+				throw(std::invalid_argument("Stepsize method not allowed"));
+			break;
+		case(Deflection_name_par):
+			if(value=="Volume" || value=="PrimalDual" || value=="null")
+				Deflection_name=value;
+			else
+				throw(std::invalid_argument("Deflection method not allowed"));
+			break;
+		default: CDASolver::set_par(par, value);
+		}
+} //end (SubGradSolver::set_par(string))
 
 
-void SubGradSolver::set_stepsize(const std::string name){
-	if(name=="FumeroTV" || name=="ColorTV" || name=="Polyak")
-		Stepsize_name=name;
-	else
-		throw(std::invalid_argument("Stepsize method not allowed"));
-} //end (SubGradSolver::set_stepsize())
+
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
