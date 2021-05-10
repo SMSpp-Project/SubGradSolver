@@ -1,0 +1,87 @@
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - NDOPar.txt- - - - - - - - - - - - - - - - - -
+#
+# A txt description of a BlockSolverConfig for the Block having a "C05
+# objective" and no sub-Block solved by the tester for PolyhedralFunction
+#
+#   version 2.0 , 06/12/2020
+#
+#   Enrico Gorgone, Antonio Frangioni
+#
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# BlockSolverConfig - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+0  # the BlockSolverConfig is not a "differential" one: values are being set
+
+1  # number of (the names of) Solver in this BlockSolverConfig
+# now all the names of the Solver - - - - - - - - - - - - - - - - - - - - - -
+SubGradSolver # name of 1st Solver
+
+1  # number of ComputeConfig in this BlockSolverConfig
+
+# now all the ComputeConfig
+# 1st ComputeConfig- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ComputeConfig # exact type of the ComputeConfig object
+
+1  # f_diff == 0 ==> all non-provided parameters are set to the default value
+   # f_diff == 1 ==> all non-provided parameters are not changed
+
+7 # number of integer parameters
+
+# now all the integer parameters
+intMaxIter 100000   # MaxIter, max number of iterations for each call
+intLogVerb 3        # LogVerb, log verbosity of main SubGradSolver algorithm
+intSGPar1 10 		# projection-strategy parameters
+intSGPar3 100		# scheme: stepsize(deflection)-restricted
+intSGPar4 0			# control if \f$ \hat{\lambda}_i \f$ is kept
+intSGPar5 0 		# seed
+intRstAlgPar 1  	# parameter to handle the reset of the algorithm
+
+7 # number of double parameters
+
+# now all the double parameters
+dblSGPar2 1		# incremental factor:
+dbltStar 1e+2   	#estimate of the longest step that can be performed
+dblEpsLin 1e-6		#*relative* precision required  (doublerelacc) 
+dblEInit 1e-2 
+dblEFnalt 1e-6
+dblEDcrs 0.95  
+dblEStps 0    
+
+
+# note that we could eof() the file here since the rest is all empty
+
+2 # number of string parameters
+
+# now all the string parameters
+# [none]
+Stepsize_name "FumeroTV"
+Deflection_name "Volume"
+
+0 # number of vector-of-int parameters
+
+# now all the vector-of-int parameters
+# [none]
+
+0 # number of vector-of-double parameters
+
+# now all the vector-of-double parameters
+# [none]
+
+0 # number of vector-of-string parameters
+
+# now all the vector-of-string parameters
+# [none]
+
+# pointer to the "extra" Configuration
+* # [none]
+
+# end of 1st ComputeConfig- - - - - - - - - - - - - - - - - - - - - - - - - -
+
+# end of BlockSolverConfig- - - - - - - - - - - - - - - - - - - - - - - - - -
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - END NDOPar.txt- - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

@@ -895,6 +895,21 @@ void SubGradSolver::set_par( const idx_type par , const double value ){
 	}
 } // end( SubGradSolver::set_par( double ) )
 
+void SubGradSolver::set_deflection(const std::string name){
+	if(name=="Volume" || name=="PrimalDual" || name=="null")
+		Deflection_name=name;
+	else
+		throw(std::invalid_argument("Deflection method not allowed"));
+} //end (SubGradSolver::set_deflection())
+
+
+void SubGradSolver::set_stepsize(const std::string name){
+	if(name=="FumeroTV" || name=="ColorTV" || name=="Polyak")
+		Stepsize_name=name;
+	else
+		throw(std::invalid_argument("Stepsize method not allowed"));
+} //end (SubGradSolver::set_stepsize())
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1819,7 +1834,12 @@ VarValue SubGradSolver::Norm(Vec_VarValue A, Index n){
 
 void SubGradSolver::InitStepsize( void ){
  step = 0;
- stepsize=Stepsize::new_Stepsize("FumeroTV", this);
+ if (Stepsize_name=="FumeroTV")
+ 	stepsize=Stepsize::new_Stepsize("FumeroTV", this);
+ if (Stepsize_name=="ColorTV")
+ 	stepsize=Stepsize::new_Stepsize("ColorTV", this);
+  if (Stepsize_name=="Polyak")
+  	stepsize=Stepsize::new_Stepsize("Polyak", this);
  stepsize->Format();
 
  }  // end( SubGradSolver::InitStepsize() )
@@ -1847,13 +1867,23 @@ void SubGradSolver::InitDeflection( void ){
  // of the direction is useless
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( deflection ) {
-  //DirPos = second;
-  deflection->Format();
+ if(Deflection_name=="Volume"){
+  	deflection=Deflection::new_Deflection("Volume", this);
+  	deflection->Format();
   }
- else {
-  SGPar3 |= StepRST;//or bitwise
-  SGPar1 &= ~( PrjDIRM1 | PrjDIR );
+   if(Deflection_name=="null"){
+  	SGPar3 |= StepRST;//or bitwise
+  	SGPar1 &= ~( PrjDIRM1 | PrjDIR );
+  }
+   if(Deflection_name=="PrimalDual"){
+  	if(stepsize){
+  	deflection=dynamic_cast< PrimalDual *>( stepsize );
+  	if(!deflection)
+  	deflection=Deflection::new_Deflection("PrimalDual", this);
+  	deflection->Format();
+  	}
+  	else
+  		throw(std::invalid_argument("Deflection method not allowed"));
   }
  }  // end( SubGradSolver::InitDeflection() )
 

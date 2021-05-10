@@ -72,7 +72,6 @@
 #include "ColVariable.h"
 #include "FRealObjective.h"
 #include "FRowConstraint.h"
-
                         
 /*--------------------------------------------------------------------------*/
 /*-------------------------- NAMESPACE & USING -----------------------------*/
@@ -471,6 +470,12 @@ void set_par( const idx_type par , const int value ) override;
 */
 
 void set_par( const idx_type par , const double value ) override;
+ /*--------------------------------------------------------------------------*/
+ /// set the deflection method
+ void set_deflection (const std::string name);
+
+ ///set the stepsize method
+ void set_stepsize (const std::string name);
  /*--------------------------------------------------------------------------*/
  /// set the ostream for the SubGradSolver log
 
@@ -1000,7 +1005,10 @@ Index GetGi(VarValue *sub, Index  * sgb, Index strt, Index stp);
  Index MaxIter;     ///< maximum number of iterations
  
  double MaxTime;    ///< maximum time (in seconds) for each call to Solve()
- 
+
+ std::string Stepsize_name;    ///< name of the Stepsize method
+
+ std::string Deflection_name;    ///<name of the deflection method ("null" if no deflection is used)
  // generic parameter - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 int Result;        ///< result of the latest call to compute()
