@@ -1,0 +1,116 @@
+##############################################################################
+################################ makefile ####################################
+##############################################################################
+#                                                                            #
+#   makefile of test (for PolyhedralFunction)                                #
+#                                                                            #
+#                                VERSION 1.10                                #
+#                               02 - 12 - 2019                               #
+#                                                                            #
+#                              Implementation by:                            #
+#                                                                            #
+#                              Antonio Frangioni                             #
+#                           Operations Research Group                        #
+#                          Dipartimento di Informatica                       #
+#                              Universita' di Pisa                           #
+#                                                                            #
+##############################################################################
+
+# module name
+NAME = PolyhedralFunction_test
+
+# basic directory
+DIR = ./
+
+# debug switches
+#SW = -g3 -glldb -fno-inline -std=c++17 -ferror-limit=1
+# debug switches with address sanitizer and extra pedantic warning
+#SW = -g3 -glldb -fno-inline -std=c++17 -ferror-limit=1 -fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer -Wpedantic -Wextra -Wno-unused-parameter
+# production switches with address sanitizer
+#SW = -O3 -std=c++17 -DNDEBUG -fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined
+# production switches
+SW = -O3 -std=c++17 -DNDEBUG 
+#-v -Xlinker --cref
+# compiler
+CC = clang++
+#CC = g++
+
+# default target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+default: $(NAME)
+
+# clean - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+clean::
+	rm -f $(DIR)*.o $(DIR)*~ $(NAME)
+
+# define & include the necessary modules- - - - - - - - - - - - - - - - - - -
+# if a module is not used in the current configuration, just comment out the
+# corresponding include line
+# each module outputs some macros to be used here:
+# *OBJ is the final object(s) / library
+# *LIB is the external libreries + -L<libdirs>
+# *H   is the list of all include files
+# *INC is the -I<include directories>
+
+# BundleSolver
+BNDSLVSDR = ../../BundleSolver/
+include $(BNDSLVSDR)makefile-c
+
+#SubGradSolver
+SBGSLVSDR =../../SubGradSolver/
+include $(SBGSLVSDR)makefile-c
+
+# not necessary, BundleSolver does that already
+# define input macros for SMS++ complete makefile, then include it
+#SMS++SDR = ../../../SMS++/
+#include $(SMS++SDR)lib/makefile-inc
+
+# not necessary, BundleSolver does that already
+# define input macros for libCPLEX complete makefile, then include it
+#libCPLEXDIR = ../../../extlib/
+#include $(libCPLEXDIR)makefile-libCPLEX
+
+# not necessary, BundleSolver does that already
+# MILPSolver
+#MILPSSDR = ../../../MILPSolver/
+#include $(MILPSSDR)makefile
+
+# define input macros for libSCIP library makefile, then include it
+#libSCIPDIR = ../../extlib/
+#include $(libSCIPDIR)makefile-libscip
+
+# main module (linking phase) - - - - - - - - - - - - - - - - - - - - - - - -
+
+# object files
+MOBJ =  $(BNDSLVOBJ)
+MOBJ1= $(SBGSLVOBJ)
+
+# libreries
+MLIB =  $(BNDSLVLIB)
+MLIB1= $(SBGSLVLIB)
+#SMSLIB=/home/pollo0397/Desktop/smspp-project/SMS++/lib/libSMS++
+
+#$(NAME): $(MOBJ1) $(DIR)test.o
+#	$(CC) -o $(DIR)$(NAME) $^ $(MLIB1) $(SW)
+	
+$(NAME): $(MOBJ) $(MOBJ1) $(DIR)test.o
+	$(CC) -o $(DIR)$(NAME) $^ $(MLIB) $(MLIB1) $(SW)
+
+# dependencies: every .o from its .C + every recursively included .h- - - - -
+
+# include directives
+MINC =  $(BNDSLVINC)
+MINC1 = -I$(SBGSLVSDR) -I$(SBGSLVSDR)Deflection -I$(SBGSLVSDR)Stepsize 
+
+# includes
+MH = $(BNDSLVH)
+MH1= $(SBGSLVH)
+
+# compile command
+
+$(DIR)test.o: $(DIR)test.cpp $(MH1) $(MH)
+	$(CC) -c $(DIR)test.cpp -o $@ $(MINC1) $(MINC) $(SW)
+
+#$(MINC)
+############################ End of makefile #################################
