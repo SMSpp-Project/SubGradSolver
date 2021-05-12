@@ -39,10 +39,14 @@ get_directory_property(hasParent PARENT_DIRECTORY)
 # This creates an ENABLE_TESTING option (default: ON) and enables the testing
 # using the ctest executable.
 # See: https://cmake.org/cmake/help/latest/manual/ctest.1.html
-include(CTest)
+#include(CTest)
 
 # ----- Requirements -------------------------------------------------------- #
+# If it's not being called by the umbrella, we need to
+# look for the system-installed libraries.
+if (NOT hasParent)
 find_package(SMSpp REQUIRED)
+endif()
 
 # ----- Configuration header ------------------------------------------------ #
 # This will generate a *Config.h header in the build directory.
@@ -61,9 +65,6 @@ target_compile_features(${modName} PUBLIC cxx_std_17)
 # but should be added to anything that links to it.
 # Note: do not GLOB files here.
 target_sources(${modName} PRIVATE
-               Deflection.cpp
-               LuckFi.cpp
-               Stepsize.cpp
                SubGradSolver.cpp)
 
 # When using target_include_directories(), PUBLIC means that any targets
@@ -78,7 +79,9 @@ target_sources(${modName} PRIVATE
 # installed in the system will look into the INSTALL_INTERFACE path.
 target_include_directories(
         ${modName} PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Deflection>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Stepsize>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<INSTALL_INTERFACE:include/${modNamespace}>)
 
 # When linking other targets to the library with target_link_libraries(),
@@ -95,7 +98,7 @@ add_library(${modNamespace}::${modName} ALIAS ${modName})
 
 # ----- Subdirectories ------------------------------------------------------ #
 if (BUILD_TESTING)
-    add_subdirectory(test)
+#    add_subdirectory(test)
 endif ()
 
 # ----- Install instructions ------------------------------------------------ #
@@ -113,8 +116,12 @@ install(TARGETS ${modName}
 
 # Install the headers
 install(FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/Deflection/PrimalDual.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/Deflection/Volume.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/Stepsize/ColorTV.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/Stepsize/FumeroTV.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/Stepsize/Polyak.h
         ${CMAKE_CURRENT_SOURCE_DIR}/Deflection.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/LuckFi.h
         ${CMAKE_CURRENT_SOURCE_DIR}/Stepsize.h
         ${CMAKE_CURRENT_SOURCE_DIR}/SubGradSolver.h
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${modNamespace})
@@ -173,6 +180,11 @@ if (CMAKE_EXPORT_PACKAGE_REGISTRY)
            FILE ${CMAKE_CURRENT_BINARY_DIR}/${modTargets}.cmake
            NAMESPACE ${modNamespace}::)
 
+    # Export the package in user's package registry
+    export(PACKAGE ${modName})
+endif()
+
+# ----- Add the build tree to RPATH------------------------------------------ #
     # Add the binary directory to RPATH, so executables that use
     # dynamic loading will look into it.
     if (hasParent)
@@ -180,10 +192,6 @@ if (CMAKE_EXPORT_PACKAGE_REGISTRY)
             "${SMSPP_BUILD_RPATH};${CMAKE_CURRENT_BINARY_DIR}"
             PARENT_SCOPE)
     endif ()
-
-    # Export the package in user's package registry
-    export(PACKAGE ${modName})
-endif ()
 
 # ----- Packaging support --------------------------------------------------- #
 # The following commands allow one to build a proper package using CPack.
