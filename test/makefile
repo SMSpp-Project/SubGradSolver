@@ -29,11 +29,10 @@ DIR = ./
 # production switches with address sanitizer
 #SW = -O3 -std=c++17 -DNDEBUG -fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined
 # production switches
-SW = -O3 -std=c++17 -DNDEBUG 
-#-v -Xlinker --cref
+SW = -O3 -std=c++17 -DNDEBUG -DCLANG_1200_0_32_27_PATCH -ferror-limit=1
+
 # compiler
 CC = clang++
-#CC = g++
 
 # default target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -57,9 +56,9 @@ clean::
 BNDSLVSDR = ../../BundleSolver/
 include $(BNDSLVSDR)makefile-c
 
-#SubGradSolver
-SBGSLVSDR =../../SubGradSolver/
-include $(SBGSLVSDR)makefile-c
+# SubGradSolver
+SBGSLVSDR = ../../SubGradSolver/
+include $(SBGSLVSDR)makefile
 
 # not necessary, BundleSolver does that already
 # define input macros for SMS++ complete makefile, then include it
@@ -83,34 +82,25 @@ include $(SBGSLVSDR)makefile-c
 # main module (linking phase) - - - - - - - - - - - - - - - - - - - - - - - -
 
 # object files
-MOBJ =  $(BNDSLVOBJ)
-MOBJ1= $(SBGSLVOBJ)
+MOBJ =  $(BNDSLVOBJ) $(SBGSLVOBJ)
 
 # libreries
 MLIB =  $(BNDSLVLIB)
-MLIB1= $(SBGSLVLIB)
-#SMSLIB=/home/pollo0397/Desktop/smspp-project/SMS++/lib/libSMS++
 
-#$(NAME): $(MOBJ1) $(DIR)test.o
-#	$(CC) -o $(DIR)$(NAME) $^ $(MLIB1) $(SW)
-	
-$(NAME): $(MOBJ) $(MOBJ1) $(DIR)test.o
-	$(CC) -o $(DIR)$(NAME) $^ $(MLIB) $(MLIB1) $(SW)
+$(NAME): $(DIR)test.o $(MOBJ)
+	$(CC) -o $(DIR)$(NAME) $^ $(MLIB) $(SW)
 
 # dependencies: every .o from its .C + every recursively included .h- - - - -
 
 # include directives
-MINC =  $(BNDSLVINC)
-MINC1 = -I$(SBGSLVSDR) -I$(SBGSLVSDR)Deflection -I$(SBGSLVSDR)Stepsize 
+MINC =  $(BNDSLVINC) $(SBGSLVINC)
 
 # includes
-MH = $(BNDSLVH)
-MH1= $(SBGSLVH)
+MH =    $(BNDSLVH) $(SBGSLVH)
 
 # compile command
 
-$(DIR)test.o: $(DIR)test.cpp $(MH1) $(MH)
-	$(CC) -c $(DIR)test.cpp -o $@ $(MINC1) $(MINC) $(SW)
+$(DIR)test.o: $(DIR)test.cpp $(MH)
+	$(CC) -c $(DIR)test.cpp -o $@ $(MINC) $(SW)
 
-#$(MINC)
 ############################ End of makefile #################################

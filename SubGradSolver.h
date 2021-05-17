@@ -300,7 +300,7 @@ enum string_par_type_SGSlv {
    EveryTTm = CDASolver::get_dflt_dbl_par( dblEveryTTm );
    SGPar2=dflt_dbl_par[ dblSGPar2-dblLastParCDAS];
    tStar=dflt_dbl_par[ dbltStar - dblLastParCDAS ];
-   EpsLin=dflt_dbl_par[ dblEpsLin - dblLastParCDAS ];
+   EpsLin=CDASolver::get_dflt_dbl_par(dblRelAcc);
    EInit=dflt_dbl_par[ dblEInit - dblLastParCDAS ];
    EFnal=dflt_dbl_par[ dblEFnalt - dblLastParCDAS ];
    EDcrs=dflt_dbl_par[ dblEDcrs - dblLastParCDAS ];
@@ -828,6 +828,18 @@ virtual idx_type int_par_str2idx( const std::string & name ) const override{
 
 	       return( Solver::int_par_str2idx( name ) );
  }
+ 
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+	     
+virtual idx_type str_par_str2idx( const std::string & name ) const override{
+	    	  // these may be many enough as to warrant using a map
+	    	  const auto it = str_pars_map.find( name );
+	    	  if( it != str_pars_map.end() )
+	    	   return( it->second );
+	    	  else
+
+	       return( Solver::str_par_str2idx( name ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -838,7 +850,6 @@ virtual const std::string & dbl_par_idx2str( const idx_type idx )const override{
 	    	  	        else
 	    	  	         return( Solver::dbl_par_idx2str( idx ) );
 }
-
 /*--------------------------------------------------------------------------*/
 
  virtual int get_int_par( const idx_type par ) ;
@@ -846,6 +857,10 @@ virtual const std::string & dbl_par_idx2str( const idx_type idx )const override{
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  virtual double get_dbl_par( const idx_type par ) ;
+ 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ //virtual double get_str_par( const idx_type par ) ;
 
  /*--------------------------------------------------------------------------*/
 void ReSetAlg( unsigned char RstLvl=0 );
@@ -909,10 +924,12 @@ virtual double get_dflt_dbl_par( const idx_type par ) const override{
 	         * rather than being pure virtual, so that derived classes not having any
 	         * string parameter do not have to bother with implementing it. */
 
-virtual const std::string & get_dflt_str_par( const idx_type par ) const override {
-	         static const std::string empty = "";
-	         return( empty );
-}
+/*virtual std::string & get_dflt_str_par( const idx_type par ) const override {
+	         if( (par>=Stepsize_name_par) && (par< StringLastParSG) )
+	         	return(dflt_str_par[par-Stepsize_name_par]);
+	         else
+	         	return( CDASolver::get_dflt_str_par(par));
+}*/
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  
 /*@} -----------------------------------------------------------------------*/

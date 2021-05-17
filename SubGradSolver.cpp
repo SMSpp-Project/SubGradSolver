@@ -892,9 +892,9 @@ void SubGradSolver::set_par( const idx_type par , const double value ){
 			case (dblEStps):
 				EStps=value;
 			break;
-			case(dblEpsLin):
+			/*case(dblEpsLin):
 				EpsLin=value;
-			break;
+			break;*/
 			case( dblMaxTime ):
 				if( value <= 0 )
 				throw( std::invalid_argument( "dblMaxTime must be > 0" ) );
@@ -1025,9 +1025,9 @@ if(par<dblLastParSG){
 		case(dblEStps):
 			return(EStps);
 		break;
-		case(dblEpsLin):
+		/*case(dblEpsLin):
 			return(EpsLin);
-		break;
+		break;*/
 		default:
 			return( CDASolver::get_dflt_dbl_par( par ) );
 		}	
@@ -1038,6 +1038,8 @@ if(par<dblLastParSG){
 			return(stepsize->get_dbl_par(par-FirstdblStepsizePar));
 	}
 }//end (SubGradSolver::get_dbl_par)
+
+
 
 void SubGradSolver::ReSetAlg( unsigned char RstLvl){
  if( ! ( RstLvl & RstAlg ) ) {  // reset algorithmic parameters - - - - - - -

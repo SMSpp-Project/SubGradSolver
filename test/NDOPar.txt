@@ -39,12 +39,12 @@ intSGPar4 0			# control if \f$ \hat{\lambda}_i \f$ is kept
 intSGPar5 0 		# seed
 intRstAlgPar 1  	# parameter to handle the reset of the algorithm
 
-7 # number of double parameters
+6 # number of double parameters
 
 # now all the double parameters
 dblSGPar2 1		# incremental factor:
 dbltStar 1e+2   	#estimate of the longest step that can be performed
-dblEpsLin 1e-6		#*relative* precision required  (doublerelacc) 
+#dblEpsLin 1e-6		#*relative* precision required  (doublerelacc) 
 dblEInit 1e-2 
 dblEFnalt 1e-6
 dblEDcrs 0.95  
@@ -57,8 +57,8 @@ dblEStps 0
 
 # now all the string parameters
 # [none]
-Stepsize_name_par "FumeroTV"
-Deflection_name_par "Volume"
+Stepsize_name_par	FumeroTV
+Deflection_name_par	Volume
 
 0 # number of vector-of-int parameters
 
