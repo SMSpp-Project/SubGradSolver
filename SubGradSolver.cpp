@@ -35,6 +35,7 @@
 
 #include "Deflection.h"
 #include "Stepsize.h"
+#include "PrimalDualClass.h"
 
 #include "PrimalDual.h"
 #include "FumeroTV.h"
@@ -45,9 +46,14 @@
 /*--------------------------------------------------------------------------*/
 /*-------------------------------- MACROS ----------------------------------*/
 /*--------------------------------------------------------------------------*/
-
-#define VLOG( l , x ) if( LogVerb > l ) *f_log << x 
-#define VLOG2( l , c , x ) if( ( LogVerb > l ) && c ) *f_log << x
+#define LOG_LEVEL 0
+#if (LOG_LEVEL>1)
+  #define VLOG( l , x ) if( LogVerb > l ) *f_log << x 
+  #define VLOG2( l , c , x ) if( ( LogVerb > l ) && c ) *f_log << x
+#else
+  #define VLOG( l , x )
+  #define VLOG2( l , c , x )
+#endif
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -78,6 +84,8 @@ SMSpp_insert_in_factory_cpp_1( (FumeroTV) );
 SMSpp_insert_in_factory_cpp_1( ColorTV ); 
 
 SMSpp_insert_in_factory_cpp_1( Polyak ); 
+
+//SMSpp_insert_in_factory_cpp_1( PrimalDual );
 
 const std::string & PrimalDual::_private_name( void ) {
 static const std::string _name( "PrimalDual" );
@@ -193,6 +201,10 @@ static const unsigned char RstFiV = 8;  // don't reset FiVals
 /*--------------------------------------------------------------------------*/
  
 void SubGradSolver::set_Block( Block * block ){
+
+ if( f_Block == block )  // registering to the same Block
+  return;                // cowardly and silently return
+
  if( f_Block ) {  // changing from a previous oracle - - - - - - - - - - - - -
                  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   guts_of_destructor();   // deallocate memory
@@ -202,7 +214,12 @@ void SubGradSolver::set_Block( Block * block ){
  if( ! f_Block )  // that was actually clearing the Block
   return;         // all done
 
- /* Two types of block can be handled by the BundleSolver:
+  bool owned = f_Block->is_owned_by( f_id );
+ if( ( ! owned ) && ( ! f_Block->lock( f_id ) ) )
+  throw( std::runtime_error(
+                       "SubGradSolver: unable to lock the Block" ) );
+
+ /* Two types of block can be handled by the SubGradSolver:
 
      1. Only one single non-smooth function
      2. a sum of some non-smooth functions
@@ -219,10 +236,9 @@ void SubGradSolver::set_Block( Block * block ){
 
  const auto & sb = f_Block->get_nested_Blocks();
 
- if( sb.empty() ) {
+ if( sb.empty() ) { //no sub-Block
   // the objective function of the block must be a C05Function  - - - - - - -
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
   auto obj = dynamic_cast< FRealObjective * >( f_Block->get_objective() );
   if( ! obj )
    throw( std::logic_error( "objective is not a FRealObjective" ) );
@@ -231,10 +247,20 @@ void SubGradSolver::set_Block( Block * block ){
   if( ! c05f )
    throw( std::logic_error( "the objective is not a C05Function" ) );
 
+  IsConvex = c05f->is_convex();
+  if( ( ! IsConvex ) && ( ! c05f->is_concave() ) )
+   throw( std::invalid_argument(
+			     "only convex or concave objectives allowed " ) );
+
+  if( ( IsConvex && ( obj->get_sense() == Objective::eMax ) ) ||
+      ( ( ! IsConvex ) && ( obj->get_sense() == Objective::eMin ) ) )
+   throw( std::invalid_argument( "can only minimize convex / maximize concave"
+				 ) );  
+
   v_c05f.push_back( c05f );
   f_lf = nullptr;
   }
- else {
+ else { //there are sub-Block
   // the objective function of the block must be a LinearFunction- - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -256,7 +282,7 @@ void SubGradSolver::set_Block( Block * block ){
      f_lf = nullptr;
     }
    }
-
+  //printf ("nrfi=%zu\n", sb.size());
   v_c05f.resize( sb.size() );
 
   for( Index i = 0 ; i < sb.size() ; ++i ) {  // for each sub-block
@@ -292,7 +318,8 @@ void SubGradSolver::set_Block( Block * block ){
     throw( std::logic_error( "static Constraint are not allowed" ) );
 
    if( sb[ i ]->get_dynamic_constraints().size() )
-    throw( std::logic_error( "dynamic Constraint are not allowed" ) );
+   throw( std::logic_error( "dynamic Constraint are not allowed" ) );
+  // continue;
    }
   }
 
@@ -325,6 +352,9 @@ void SubGradSolver::set_Block( Block * block ){
     throw( std::logic_error( "the list of active Variable do not match" ) );
   }
   
+  // if some Variable are present, they are of the ColVariable type - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
   
   Index NumBVar = 0;  // count the number of Variable in the Block
  auto v_s_Variable = f_Block->get_static_variables();
@@ -338,6 +368,19 @@ void SubGradSolver::set_Block( Block * block ){
   throw( std::logic_error( "some static Variable is not a ColVariable" ) );
   }
 
+ /* auto v_d_Variable = f_Block->get_dynamic_variables();
+ for( auto & el : v_d_Variable ) {
+  if( un_any_thing_0( std::list< ColVariable > , el , ++NumBVar ) )
+   continue;
+  if( un_any_thing_1( std::list< ColVariable > , el ,
+		      NumBVar += var.size() ) )
+   continue;
+  if( un_any_thing_K( std::list< ColVariable > , el ,
+		      NumBVar += var.num_elements() ) )
+   continue;
+  throw( std::logic_error( "some dynamic Variable is not a ColVariable" ) );
+  }
+  */
  if( NumBVar < NumVar )
   throw( std::logic_error( "too few ColVariable in the Block" ) );
 
@@ -351,6 +394,10 @@ void SubGradSolver::set_Block( Block * block ){
   un_any_static( el , [ & ]( ColVariable & sv ) { LamBVcblr[ cnt++ ] = & sv;
                   } , un_any_type<ColVariable>() );
 
+  /* for( auto & el : v_d_Variable )
+  un_any_dynamic( el , [ & ]( ColVariable & sv ) { LamBVcblr[ cnt++ ] = & sv;
+                  } , un_any_type<ColVariable>() );
+*/
  std::sort( LamBVcblr.begin() , LamBVcblr.end() );
 
  std::vector<ColVariable *> LamVcblrO( LamVcblr );
@@ -378,11 +425,12 @@ void SubGradSolver::set_Block( Block * block ){
 
  if( f_Block->get_dynamic_constraints().size() )
   throw( std::logic_error( "dynamic Constraint are not allowed" ) );
-  
+   
   // read information about the function  - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  NrFi = v_c05f.size();
+ //printf("NrFi=%d\n", NrFi);
  
   // allocate memory- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -402,7 +450,7 @@ void SubGradSolver::set_Block( Block * block ){
  TrueLB=false;
  
  FiBest = FiLambda = Inf<VarValue>(); // Fi( Lambda ) is not known
- 
+
  // allocate memory for the subgrads and the direction - - - - - - - - - - -
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // The direction will be allocated after either Deflection will have been
@@ -419,25 +467,29 @@ void SubGradSolver::set_Block( Block * block ){
  // asking the projection of both DirM1 and and Gi implies the automatic
   // projection of dir- - - - - - - - - - - - - - - - - - - - - - - - - - - -
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-  if( ( SGPar1 & PrjDIRM1 ) && ( SGPar1 & PrjSG ) )
-   SGPar1 &= ~PrjDIR;
+ 
+ /* if( ( SGPar1 & PrjDIRM1 ) && ( SGPar1 & PrjSG ) )
+   SGPar1 &= ~PrjDIR;*/
    
   // reset algorithm  - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  
   // checking for 0-th component - - - - - - - - - - - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  Index * SG0Bse;
-  Index SG0BDm =GetGi( gi , SG0Bse ,0, NumVar);
-    for(Index i=0; i<NumVar; i++)
-      Gi[i]=gi[i];
-  ZeroComp = SG0BDm > 0;
+ /* Index * SG0Bse;
+  Index SG0BDm =GetGi( gi , SG0Bse ,0, NrFi);
+  //printf("SG0BDm=%d\n", SG0BDm);
+    for(Index i=0; i<NumVar; i++){
+      //Gi[i]=gi[i];
+      Gi[i]=1;
+      //printf("Iter n %d\n", i);
+    }*/
+  //ZeroComp = SG0BDm > 0;
+  ZeroComp=true;
   // initialization of data structures for incremental done there inside
 
   // initialize HatLambda  - - - - - - - - - - - - - - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
   if( SGPar4 ) {
    LambdaHat.resize(NumVar);
    for(Index i=0; i<NumVar; i++)
@@ -448,8 +500,8 @@ void SubGradSolver::set_Block( Block * block ){
 
   // initialize both stepsize and deflection solvers - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	if(stepsize)
-		InitStepsize();
+	//if(stepsize)
+	InitStepsize();
 	
 	InitDeflection();  
 
@@ -459,17 +511,20 @@ void SubGradSolver::set_Block( Block * block ){
   EmptySet = false;       // the feasible set is not empty
 
 /*-----------------------------------------------------------------------------*/
-	for(Index i=0; i<NrFi; i++){
+	/*for(Index i=0; i<NrFi; i++){
 		IsConvex = IsConvex && (v_c05f[i]->is_convex()); //is true iff every component of the objective function is convex
 		IsConcave = IsConcave && (v_c05f[i]->is_concave()); //is true iff every component of the objective function is concave
-	}
+	}*/
 	
 	UpdtLowerBound();
 	
 	AllocateUBLB(0, NumVar);
 
- ReSetAlg( RstAlgPar );  // Lambda is reset inside
- 
+ //ReSetAlg( RstAlgPar );  // Lambda is reset inside
+ if( ! owned )
+  f_Block->unlock( f_id );
+
+ //printf("Finish set_block\n");
 }//end SubGradSolver::Set_Block
 
  /*--------------------------------------------------------------------------*/
@@ -501,15 +556,13 @@ if( ! owned )             // if the Block was actually read_locked
 // start timer - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  c_start = std::clock();
-  
 	// initializations - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  double lastETT = 0;  // last "time" eEveryTTime events have been called
  ParIter=0; //number of iterations
- Result = Solver::kOK; //risultato inizializzato a default
+ Result = Solver::kUnEval; //risultato inizializzato a default
  SCalls++; //number of calls to compute() included this one
  Index comp;	//a component
-
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // main cycle starts here- - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -517,9 +570,9 @@ if( ! owned )             // if the Block was actually read_locked
  do {
   // function log: print the information relative to the stability center
   // and the best point - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
+printf("\n\nCiclo nuovo\n\n");
   Log1();
-
+ //printf("\n Ciclo %d\n", ParIter);
   // check for running time - - - - - - - - - - - - - - - - - - - - - - - - -
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -529,7 +582,7 @@ if( ! owned )             // if the Block was actually read_locked
     Result = kStopTime;
    break;
    }
-   
+  
    // run time-periodic events - - - - - - - - - - - - - - - - - - - - - - - -
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -542,7 +595,7 @@ if( ! owned )             // if the Block was actually read_locked
 
    lastETT = elapsed();  // reset counter
    }
-  
+
   if( Result != kUnEval ) {
    VLOG( 1 , " ~ stop due to time-periodic event" << std::endl );
    break;
@@ -550,30 +603,32 @@ if( ! owned )             // if the Block was actually read_locked
   // To compute the next point Lambda1, select the direction Dir and the
   // stepsize Nu using, respectively, Deflection and Stepsize objects
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  
-  if(FiBar <Inf<VarValue>()){
-	 
+  if(FiBar < Inf<VarValue>()){ 
+    printf("Sono nell'if, FiBar<inf\n");
 	//if the function value (at Lambdabar) is unknown  skip the direction and stepsize
    // computation and go straight to FiAndGi()
-
+   //printf("Ciclo interno\n");
    // direction log: print the information relative to DIRM1  - - - - - - - -
    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
    Log2();
 
    // FormD call: a new direction is provided, but Dir is not updated
    // yet because AddVariables() and RemoveVariables() need to work
    // with the prior vector Dir - - - - - - - - - - - - - - - - - - - - - - -
    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
    FormD( );
-
+  printf("Sono fuori da formD()\n");
 	// check the status and take the action, only during
    // outer iterations  - - - - - - - - - - - - - - - - - - - - - - - - - - -
    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-   if( !InnIter )
-    fs = f_lf->compute(false);
+  //printf("Log4\n");
+  printf("Inniter after FormD()=%d\n", InnIter);
+   if( !InnIter ){
+    for(Index i=0; i<NrFi; i++){
+      fs=v_c05f[i]->compute(false);
+    }
+    printf("Ricompute\n");
+   }
 
    if( fs == ThinComputeInterface::kError ) {
     VLOG( 1 , " ~ STOP" << std::endl );
@@ -588,28 +643,30 @@ if( ! owned )             // if the Block was actually read_locked
 	
    // save the search direction Dir (and calulate the stepsize in the stepsize-restriction scheme)
    
-   //questa parte di sotto riguarda qualcosa sul slavataggio in memoria che non ho capito
-   
    //: note that the previous DIR is not saved
    // as DirM1, but it is merely discharged; only and one vector is kept
    // for storing the direction- - - - - - - - - - - - - - - - - - - - - - - -
    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    
    SaveDir();
-   
+   printf("Sono fuori da savedir\n");
+   //printf("Log5\n");
    // if the Stepsize object needs the scalar product between DirM1 and Gi (<d_{i-1}, g_i>),
    // then the direction vector is kept- - - - - - - - - - - - - - - - - - - -
 
    if( stepsize->NeedsdkM1Gk() && ( ! deflection ) ){
+     printf("Needsdkm1gk=%d\n", stepsize->NeedsdkM1Gk());
 	for(Index i=0; i<NumVar; i++)
 		dir[i]=Gi[i];
    }
    // direction log: print the information relative to DIR   - - - - - - - - -
    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
+  for(Index i=0; i<NumVar;i++)
+    printf("After formd e savedir dir[%d]=%f\n", i, dir[i]);
    Log2();
 	
 	if( step <= 1e-8 * tStar ) { // it'a a shortstep
+    printf("SmallStep\n");
     CSmallStep++; // another shortstep 
     if( CSmallStep > ( ( NItIncr > 0 )? 100 * NrFi : 100 ) ) { // If the number of incremental iteration after an outer iteration (NItIncr) is >0 then I compare CSmallStep with 100*NrFi (numbers of component of the obiective sum function), else with 100
 	// If the number of consecutive shortstep is higher than the limit value, then I stop the iteration and return the status
@@ -617,15 +674,21 @@ if( ! owned )             // if the Block was actually read_locked
      break;
      }
     }
-   else// it's a normal step 
+   else{// it's a normal step 
+   printf("normal step\n");
     CSmallStep = 0;//The counter is reinizialized because we only check about consecutive short steps
    }  // end( search direction computation, when there are no info about the function valuated in LambdaBar) - - - - - - - - - - - - - - - - -
    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   
+  }
+
+
+
+
   // check for optimality  - - - - - - - - - - - - - - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
+  //printf("\n Inniter=%d IsOptimal=%d\n", InnIter, IsOptimal());
   if( ( ! InnIter ) && IsOptimal() ){
+    //printf("\n entro qui\n");
 	   // run optimality events
    int res = eContinue;
    for( auto & ev : v_events[ eBeforeTermination ] )
@@ -633,20 +696,19 @@ if( ! owned )             // if the Block was actually read_locked
      break;
 
    if( res == eStopError ) {
-    //VLOG( 1 , " ~ stop (error) by optimality event" << std::endl );
+    VLOG( 1 , " ~ stop (error) by optimality event" << std::endl );
     Result = kError;
     break;
     }
     
 	if(res==eForceContinue){
-		throw("This is not allowed");
+		throw(std::logic_error("This is not allowed"));
 		break;
 	}
-   //VLOG( 1 , " ~ stop (optimal)" << std::endl );
+   VLOG( 1 , " ~ stop (optimal)" << std::endl );
    Result = kOK;
    break;
    }
-
   // run iteration-periodic events- - - - - - - - - - - - - - - - - - - - - -
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -658,145 +720,161 @@ if( ! owned )             // if the Block was actually read_locked
     }
 
   if( Result != kUnEval ) {
-   //VLOG( 1 , " ~ stop due to time-periodic event" << std::endl );
+   VLOG( 1 , " ~ stop due to time-periodic event" << std::endl );
    break;
    }
-
   // calculate the tentative point Lambda1 (not projected yet)   - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   FormLambda1();
-
-  //VLOG( 1 , std::endl << "           " << " |Lambda1| = " << Norm( Lambda , NumVar )  );
+  VLOG( 1 , std::endl << "           " << " |Lambda1| = " << Norm( Lambda , NumVar )  );
 
   // a real iteration (iterations where Fi() is not evaluated count as well) -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
   ParIter++; //new iteration
-
   // is an inner iteration?- - - - - - - - - - - - - - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  
+  printf("NIrIncr=%d GiEvaltns=%d\n", NItIncr, GiEvaltns);
   InnIter = NItIncr? GiEvaltns % ( NItIncr + 1 ): 0; 
   //InnIter takes GiEvaltns%(NItIncr+1) if NItIncr!=0, else 0
   //GiEvaltns is the number of calls to Gi()
-  
+  printf("InnIter calcolato=%d\n", InnIter);
+
   LHasProj = false; //lambda has not been projected yet in this iteration
   
   // pick up component comp (defined at the beginning of the function) - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	if (InnIter){
-		while (!comp)// I don't want the first component
+	//printf("Inniter=%d\n", InnIter);
+  if (InnIter){
+	//	while (!comp)// I don't want the first component
 			comp=myrandom(NrFi);//I take one of the component
 	}
-	else
+	else{
+    printf("Inniter=0\n");
 		comp=Inf<Index>();
-
+  }
+    printf("comp=%u\n", comp);
 	// project Lambda1 onto the feasible set - - - - - - - - - - - - - - - - - -
    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ 
 	while (1){
-		if(ProjFsb(Lambda, EmptySet)){//check if lambda components were changed in the projection
-			LHasProj=LHasChgd=true;
-			//VLOG( 1 , " ~ |Lambda1| = " << Norm( Lambda , NumVar )  );
+    //printf("\n In while(1)\n");
+    bool t=ProjFsb(Lambda, EmptySet);
+   printf("Risultato ProjFsb=%d\n", t);
+		if(t){//check if lambda components were changed in the projection
+			LHasProj=true;
+      LHasChgd=true;
+			VLOG( 1 , "\n ~ |Lambda1| = " << Norm( Lambda , NumVar )  );
 			if(EmptySet)
 				break;
 			//continue while the set is feasible: so it will be possible to take a point	
 			}
-	
+
 		// never evaluate the objective function at the same point - - - - - - - -
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 		if( ! LHasChgd )//if the point lambda is the same as the previous iteration
-			throw ("SubGradSolver::compute() this should not happen");
+			throw (std::logic_error("SubGradSolver::compute() this should not happen"));
 	
 		// compute Fi( Lambda1 ) and a subgradient / constraint Gi[wFi]- - - - - -
    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-		FiAndGi( comp );//update LmbdBst
    
+		FiAndGi( comp );//update LmbdBst
+    for(Index i=0; i<NumVar; i++)
+    printf("Gi[%d]=%f\n", i ,Gi[i]);
 		// if the Lambda1 is infeasible, go back to the projection - - - - - - - -
    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
+   printf("FuoridaFiandGi\n");
+   printf("FiLambda fuori da fiandgi=%f\n", FiLambda);
 		if( FiLambda < Inf<VarValue>() )
 			break;
-
+    
    			} // end function evaluation - - - - - - - - - - - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	
 	// project the subgradient Gi[wFi] over the tangent cone at tentative point
    // Lambda1- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  if( SGPar1 & PrjSG )// check if Gi[wFi] is not projected yet
+  if( SGPar1 & PrjSG ){// check if Gi[wFi] is not projected yet
+  printf("SGPAR1 & PrjSG projt\n");
    ProjTng( Gi , Lambda );
-
-  NrmGi = Norm( Gi , NumVar );//compute the sqared norm of Gi[wFi]
-
+  }
+  NrmGi = 0;//Norm( Gi , NumVar );//compute the sqared norm of Gi[wFi]
+  for(Index i=0; i<NumVar; i++)
+  NrmGi=NrmGi + (Gi[i]*Gi[i]);
+  printf("NormGi afer eventually projection=%f\n", NrmGi);
   // compute the scalar product between Dir and Gi[wFi] at Lambda1- - - - - -
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -	
   if( stepsize->NeedsdkM1Gk() ) {
+  printf("needsdmkm1gk\n");
    dM1Gk = ScalarProduct( dir , Gi , NumVar );
    dM1GkDone = true;
    }
   else
    dM1GkDone = false;
-   
     // print the logs regarding Fi and Gi[wFi] at Lambda1 - - - - - - - - - - -
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    //log su fi(lambda1) e gi(wfi) 
-   
+   printf("Scalar product=%f\n", ScalarProduct( dir , Gi , NumVar ));
    // check for feasibility- - - - - - - - - - - - - - - - - - - - - - - - - -
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    
    if( EmptySet ) {
+     //printf("kInfeasible\n");
 		Result = kInfeasible;
    break;
    }
    
    if (FiLambda==-Inf<VarValue>()){
+      //printf("kUnbounded\n");
 	   Result=kUnbounded;
 	   break;
    }
   // check whether or not the Lower Bound has changed - - - - - - - - - - - -
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  
+ //printf("before\n");
 	UpdtLowerBound();
-  
-  //VLOG2( 1 , LowerBound > - Inf<VarValue>() , " ~ UB = " << -LowerBound );
+printf("Updatelb\n");
+  VLOG2( 1 , Lowerbound > - Inf<VarValue>() , "\n ~ UB = " << Lowerbound );
    
    // if FiBar (the function at LambdaBar) is unknown, or no deflection is
   // used, then move to Lambda1 - - - - - - - - - - - - - - - - - - - - - - -
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  printf("FiBar=%f\n", FiBar);
    if( ( FiBar == Inf<VarValue>() ) || ( ! deflection ) ) {
-		
 		GotoLambda1();
+    printf("Go to lambda 1\n");
 		DoSS = true;//A serious step is done
-		//VLOG( 1 , std::endl );
+		VLOG( 1 , std::endl );
 		continue;
    }
-   
+   printf("non eseguo go to lambda 1\n");
    // Null Step (NS) vs Serious Step (SS)- - - - - - - - - - - - - - - - - - -
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  DoSS = deflection->DoSS();
+  DoSS = deflection->DoSS();//perchéè sempre falso?
+ printf("In SubGrad:doSS=%d\n", deflection->DoSS());
   if( DoSS ) {  // SS- - - - - - - - - - - - - - - -
-
+  printf("In SubGrad:delta ss=%f\n", deflection->Delta());
    VLOG2( 1 , deflection->Delta() < Inf<VarValue>() , std::endl << " SS[" << CSSCntr );
 
    GotoLambda1();
-
-   CSSCntr++;//new serious step is done
+  
+  CSSCntr++;//new serious step is done
   CNSCntr = 0;// turn the number of consecutive null steps to 0
+  printf("CSSCntr=%d\n", CSSCntr);
   }else {  // NS- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
    VLOG2( 1 , deflection->Delta() > - Inf<VarValue>() , std::endl << " NS[" << CNSCntr );
-
+  printf("In SubGrad:delta ns=%f\n", deflection->Delta());
    UpdateSigma();//need to modify the error 
-
+  printf("Sigma=%f\n", Sigma);
    CNSCntr++;
    CSSCntr = 0;
-
+   printf("CNSCntr=%d\n", CNSCntr);
    }  // end SS/NS - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
+  VLOG
+  ( 1 , "]: DFi (" << FiBar - FiLambda << ") < m1 * Dv ("
+	     << deflection->Delta() << ")" );
   VLOG( 1 , std::endl );
 
   // check for Lower Bound stopping condition - - - - - - - - - - - - - - - -
@@ -810,11 +888,12 @@ if( ! owned )             // if the Block was actually read_locked
    Result = kUnbounded;
    break;
    }
-   
+   printf("nuovociclo\n");
   } while( ( ! MaxIter ) || ( ParIter < MaxIter ) );
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // main cycle ends here- - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ //printf("Return=%d\n", Result);
   return( Result );
 
 }//end ( SubGradSolver::compute() )
@@ -834,20 +913,29 @@ void SubGradSolver::set_par( const idx_type par , const int value ){
   case( CDASolver::intLogVerb ):
    LogVerb = value;
    break;
-   case( Solver::intEverykIt ):
+  case( Solver::intEverykIt ):
 	EverykIt=value;
   case(intSGPar1):
-		if(value<1)
-		throw( std::invalid_argument( "SGPar1 must be >= 1" ) );
 		SGPar1 = value;
+    if( ( SGPar1 & PrjDIRM1 ) && ( SGPar1 & PrjSG ) )
+      SGPar1 &= ~PrjDIR;
+    if( ! deflection )
+      SGPar1 &= ~( PrjDIRM1 | PrjDIR );
 	break;
    case(intSGPar3):
-		if(value<1)
-		throw( std::invalid_argument( "SGPar3 must be >= 1" ) );
 		SGPar3 = value;
+    if( ! deflection )
+      SGPar3 |= StepRST;
 	break;
 	case(intSGPar4):
-		SGPar4=value;
+    if(value==0 || value==1){
+		  if( NItIncr ) // forbidden for incremental version
+        SGPar4 = 0;
+      else
+        SGPar4 = value;
+    }
+    else 
+      throw(std::invalid_argument("SGPar4 value not allowed"));
 	break;
 	case (intSGPar5):
 		SGPar5=value;
@@ -873,9 +961,19 @@ void SubGradSolver::set_par( const idx_type par , const double value ){
 	if(par<FirstdblDeflectionPar){
 		switch( par ) {
 			case( dblSGPar2 ):
-				if( value < 1 )
-					throw( std::invalid_argument( "SGPar2 must be >= 1" ) );
-				SGPar2 = value; 
+				SGPar2 = value;
+        InnIter=false;
+        ZeroComp=true;
+        if (ZeroComp)
+           NItIncr = ceil( double( NrFi + 1 ) * SGPar2 );
+        else
+           NItIncr = ceil( double( NrFi ) * SGPar2 );
+        printf("In set_par NItInctr=%d\n", NItIncr);
+        if( NItIncr ) {
+           SGPar4 = 0;
+           if( deflection )
+              throw( std::invalid_argument( "set_par: deflection is not allowed" ) );
+        }
 			break;
 			case (dbltStar):
 				tStar=value;
@@ -940,9 +1038,9 @@ void SubGradSolver::set_par( idx_type par , std::string && value  ){
 void SubGradSolver::set_log( std::ostream *log_stream){
  f_log=log_stream;
   if( LogVerb > 1 ) {
-   *f_log << std::endl << "SubGradSolver: Vars = " << NumVar << " ("
+   *f_log << std::endl << "SubGradSolver: Vars = " << NumVar << "NrFi="<< NrFi <<" ("
 	   << ") ~  NItIncr = " << NItIncr <<  " ~ EpsLin = "
-	   << EpsLin << " ~ FiEps = " << EInit << " ~ t* = " << tStar;
+	   << EpsLin << " ~ Einit = " << EInit << " ~ t* = " << tStar;
    *f_log << std::endl << " SGParameters = ( " << SGPar1 << " ~ " << SGPar2
 	   << " ~ " << SGPar3 << " ~ " << ( SGPar4? "true" : "false")
 	   <<  " ~ "  << SGPar5 << " )" << std::endl;
@@ -1143,12 +1241,12 @@ VarValue SubGradSolver::ReadHatFiVal( void ){
 
 bool SubGradSolver::IsOptimal( VarValue eps ){
  VarValue FiL = FiBest;
-
+printf("InIsOptimal:\n  tStar=%f, EpsLin=%f, Epsilon=%f, NrmDir=%f, FiBest=%f\n", tStar, EpsLin, Epsilon, std::sqrt( NrmDir ), FiBest);
  if( FiL == Inf<VarValue>() )
   return( false );
  else {
   if( FiL < 0 ) FiL = - FiL;
-  if( FiL < 1 ) FiL = 1;
+  if( FiL < 1 ) FiL = 1;  //max{1, |f_i^{rec}|}
 
   if( eps <= 0 )
    eps = EpsLin;
@@ -1177,7 +1275,7 @@ bool SubGradSolver::IsOptimal( VarValue eps ){
 		for(i=0;i<NumVar; i++)
 			LambdaBar[i]=VarValue(0);
 	}
-	FiBest=FiBar=Inf<VarValue>();
+	//FiBest=FiBar=Inf<VarValue>();
 	
 }// end (SubGradSolver::SetLambda())
 
@@ -1196,33 +1294,41 @@ it's coded bitwise and every bit is equal to 1 if the field is projected, 0 othe
 -bit2 ->d_{i-1}
 -bit 3 ->d_i
 */
-if ((SGPar1 & PrjSG) && (! DoSS) ) //status check(fs==//status check)) //g_i is already projected but no serious step has been done
+if ((SGPar1 & PrjSG) && (! DoSS) ) //status check(fs==//status check)) 
+//g_i is already projected but no serious step has been done
 //The projection has to be recomputed
 {
+  printf("DoSS in FormD =%d\n", DoSS);
 	ProjTng(Gi, LambdaBar);
 NrmGi=Norm( Gi, NumVar);// the squared norm
+printf("Normgi in FormD=%f\n", NrmGi);
 dM1GkDone = false;//the scalar product \f$d_{i-1}^{\top} g_i\f$ has to be computed
   }
 // subgradient log: print the information relative to Gi[wFi] - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  Log4();
-
+//printf("F1\n");
  // project DirM1 and compute its norm - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-if ((SGPar1 & PrjDIRM1)) //status check(fs==//status check))
+if (SGPar1 & PrjDIRM1) //status check(fs==//status check))
 	//if d_{i-1} has been projected
 	{if(SGPar1 & PrjDIR){
 		//if d_i has been projected over the tangent cone of the previous Lambdabar
 		if (DoSS){ //if a serious step has been done
 			ProjTng(dir, LambdaBar);// mandatory to reproject
 			NrmDir=Norm(dir, NumVar);
+          printf("In FormD1 DoSS=%d NrmDir=%f\n", deflection->DoSS(), NrmDir);
 			dM1GkDone = false; //the scalar product \f$d_{i-1}^{\top} g_i\f$ has to be computed
 		}	
 	}
 	else{//is needed to project d_i
+    printf("Not projected yet\n");
 		ProjTng(dir, LambdaBar);
 		NrmDir=Norm(dir, NumVar);
+    printf("In FormD NrmDir=%f\n", NrmDir);
+    for (Index i=0; i<NumVar; i++)
+        printf("dir[%d]=%f\n", i, dir[i]);
 		dM1GkDone = false; //the scalar product \f$d_{i-1}^{\top} g_i\f$ has to be computed
 	}
 }	
@@ -1232,66 +1338,80 @@ if ((SGPar1 & PrjDIRM1)) //status check(fs==//status check))
 if (deflection){
 	if(! dM1GkDone)//if the scalar product has not been already computed
 		dM1Gk=ScalarProduct( Gi, dir, NumVar);
+  printf("deflection!=null dM1Gk=%f\n", dM1Gk);
 }
 else{
 	//no deflecton is done -> d_i=g_i
-	dGk=NrmDir=NrmGi;// the scalar product <d_i, g_i>
+	dGk=NrmGi;
+  NrmDir=NrmGi;// the scalar product <d_i, g_i>
 	if(! dM1GkDone)
-dM1Gk=dGk;// <d_{i-1}, g_i>=<d_i, g_i>
+    dM1Gk=dGk;// <d_{i-1}, g_i>=<d_i, g_i>
 }
 
 dM1GkDone=true; //the scalar product <d_{i-1}, g_i> has been done 
-
+//printf("F3\n");
 /*-------------------------------------------------------------------------------*/
 /* Check on the approach: stepsize-restricted or deflection-restricted.
 This information is coded bit wise in SGPar3: second bit is equal to 1
 in the first approach, equal to 0 in the secon one*/
 if (SGPar3 & StepRST){
+  printf("Stepsize restricted\n");
 	//stepsize-restricted approach: deflection, compute, stepsize
 	if (deflection){
 		//deflection computation
+    printf("deflection computation\n");
 		deflection->NewDEF();// inizialization
 		alpha=deflection->GetDFLCoeff();// get alpha 
+    printf("alpha=%f\n", alpha);
 	}
-	//vlog su chi è alpha
+VLOG( 1 , " ~ alpha = " << alpha );
 }
 else{
+  printf("Deflection restricted\n");
 	//deflection-restricted approach: stepsize, deflection, compute
 	dGk=dM1Gk;// is not important the distinction between them
-	
-	if( ! InnIter)// if is an outer iteration is needed to recompute stepsize
+	printf("InnIter in deflection restricted =%d\n", InnIter);
+	if( ! InnIter){// if is an outer iteration is needed to recompute stepsize
 	stepsize->NewStep();
+  printf("NewStep\n");
+  }
 	
 	step=stepsize->GetStepsize(InnIter);// get the stepsize according to the type of iteration
+  printf("Step dopo getstepsize =%f\n", step);
 	
-	//vlog sul valore di step
+ VLOG( 1 , " ~ step = " << step );
 	
 	deflection->NewDEF();// the case of NO DEFLECTION is not allowed
 	alpha=deflection->GetDFLCoeff();// get alpha
+ printf("In deflection restricted alpha=%f\n", alpha);
 	
-	//vlog sul valore di alpha
+ VLOG( 1 , " ~ alpha = " << alpha );
 	/*-------------------------------------------------------------------------------------------*/
 	
 	/* Check if any safe rule is taken according to SGPar3 coded bit-wise: 
 	the first bit is equal to 1 if the rule is used, it's equal to 0 otherwise*/
 	
 	if((SGPar3 & SafeRULE) && !InnIter){
+    printf("Saferule\n");
 		//if a safe rule is used and there is an outer iteration
 		VarValue target= (step * NrmDir)/(FiBar-stepsize->GetLev()+ (step + NrmDir)); //(v_i*||d_{i-1}||^2)/(f_i-f_i^lev + v_i*||d_{i-1}||^2 )
 		//f_i^lev=f_i^rec-\delta_i
 		//f_i^rec==min{f_k:k=1,..,1}
+
 		//\delta_i>0 depends on the choice of vanish or nonvanishing method
-		//perchè diviso e non *?????
 		alpha=std::min(1.0, std::max(alpha, target));// to respect the right inequality for the safe rule
+    printf("Safe rule target=%f e alpha=%f\n", target, alpha);
 		
-		//vlog sul valore dell'alpha appena calcolato
+   VLOG( 1 , " ~ fixed alpha = " << alpha );
 	}
 }
+for (Index i=0; i<NumVar; i++)
+printf("dir[%d]=%f in formd\n", i, dir[i]);
 
 // print Dir norm - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  
- //Capire cosa ci va eventualmente
+VLOG( 1 , " ~ trial |D| = " << NrmDir );
 
 }// end SubGradSolver::FormD()
 
@@ -1299,8 +1419,12 @@ else{
 void SubGradSolver::SaveDir(void){
 // compute the linearization error of Dir at LambdaBar- - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if(alpha==1)
-	Epsilon=Sigma;
+ //printf("alpha in Savedir=%f\n", alpha);
+ if(alpha==1){
+  printf("savedir alpha=1\n");
+  Epsilon=Sigma;
+ }
+
  else
 	Epsilon= alpha* Sigma + (VarValue(1)-alpha)*Epsilon;
  
@@ -1313,31 +1437,41 @@ void SubGradSolver::SaveDir(void){
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if (deflection){
 	 //d_i is the convex combination of d_{i-1} and g_i
-	 
+	 printf("Savedir deflection\n");
 	 if(alpha==1){
-		 for(Index i=0; i<NumVar; i++)
+		 for(Index i=0; i<NumVar; i++){
 			dir[i]=Gi[i];
+      printf("dir[%d]=%f\n", i, dir[i]);
+     }
 	 }
 	 else{
 		 for(Index i=0; i<NumVar; i++){
+       printf("Savedir alpha !=1\n");
 			 VarValue g=dir[i];//if we do the k-th iteration this is d_{k-1}[i]
 			 dir[i]=alpha*Gi[i]+(VarValue(1)-alpha)*g;
+       //printf("dir[%d]=%f\n", i, dir[i]);
 		 }
 			
 	 }
-	 
-	 //Ci sarebbe lo swap, delle posizioni, vedi fine FormD()
+	 for (Index i=0; i<NumVar; i++)
+  printf("dir[%d]=%f in savedir1\n", i, dir[i]);
 	 
 	 // project Dir on tangent cone at LambdaBar  - - - - - - - - - - - - - - - -
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	if(SGPar1 & PrjDIR)// capire perchè fa questo controllo
+	if(SGPar1 & PrjDIR){// capire perchè fa questo controllo
 		ProjTng(dir, LambdaBar);
+    printf("Projdir in savedir\n");
+  }
 	
 	// compute the (squared) norm of the direction and its scalar product with
   // the subgradient   - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-	NrmDir = Norm( dir , NumVar );
+	NrmDir = 0;//Norm( Gi , NumVar );//compute the sqared norm of Gi[wFi]
+  for(Index i=0; i<NumVar; i++)
+  NrmDir=NrmDir + (dir[i]*dir[i]);
+  printf("NrmDir= in safedir %f\n", NrmDir);
 	dGk = ScalarProduct( Gi , dir , NumVar );
+  printf("dgk in savedir=%f\n", ScalarProduct( Gi , dir , NumVar ));
 
   }  // end( deflection )  - - - - - - - - - - - - - - - - - - - - - - - - - -
 	
@@ -1350,59 +1484,83 @@ void SubGradSolver::SaveDir(void){
 
   step = stepsize->GetStepsize( InnIter );
   
-  // VLOG( 1 , " ~ step = " << step );
+   VLOG( 1 , " ~ step = " << step );
   // safe rule - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   if( SGPar3 & SafeRULE ) {//check on the safe rule
    stepsize->SetMaxBeta( alpha );//capire
    step = stepsize->GetStepsize( InnIter );
-   // VLOG( 1 , " ~ (fixed) step = " << step );
+    VLOG( 1 , " ~ (fixed) step = " << step );
    
    }
 
   }  // end stepsize-restricted scheme - - - - - - - - - - - - - - - - - - - -
-  
+  for (Index i=0; i<NumVar; i++)
+printf("dir[%d]=%f fine di savedir\n", i, dir[i]);
  }  // end( SubGradSolver ::SaveDir() )
 
 /*--------------------------------------------------------------------------*/
 void SubGradSolver::FormLambda1(void){
 	if(deflection){
-		for( Index i = 0 ; i < NumVar ; i++ )
+     for (Index i=0; i<NumVar; i++)
+  printf("dir[%d]=%f in FormLambda1\n", i, dir[i]);
+    printf("\n deflection: step= %f\n", step); 
+		for( Index i = 0 ; i < NumVar ; i++ ){
 			Lambda[i]=LambdaBar[i] - step * dir[i];
+      //printf("e dir=%f\n", dir[i]);
+    }
 	}
 	else{
-		for( Index i = 0 ; i < NumVar ; i++ )
+     for (Index i=0; i<NumVar; i++)
+    printf("Gi[%d]=%f FormLambda1\n", i, Gi[i]);
+    printf ("\n no deflection: step= %f", step);
+		for( Index i = 0 ; i < NumVar ; i++ ){
 			Lambda[ i ] = LambdaBar[ i ] - step * Gi[ i ];
+      //printf (" e dir=Gi=%f\n", Gi[i]);
+    }
 	}
  	LHasChgd = true;// lambda has changed since the last call to FiandGi()
+   for (Index i=0; i<NumVar; i++)
+    printf("FormLambda1 Lambda[%d]=%f\n", i , Lambda[i]);
 }	//end(SubGradSolver::FormLambda1())
 
 /*--------------------------------------------------------------------------*/
 void SubGradSolver::FiAndGi(  Index wFi ){
  // pass Lambda1 - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( LHasChgd ) {  // if Lambda1 has changed, set the new one 
+ if( LHasChgd ) { 
+   printf("In FiandGi Lambdahaschngd\n"); // if Lambda has changed, set the new one 
   SetLambda( Lambda );
   LHasChgd = false;
+//for(Index i=0; i<NumVar; i++)
+//printf("Lambdabar[%d]=%f\n", i, LambdaBar[i]);
   }
-
+  for(Index i=0; i<NrFi; i++){
+    fs=v_c05f[i]->compute(false);
+    if(fs!=ThinComputeInterface::kOK)
+      throw(std::logic_error("Function compute fails"));
+  }
+   FiEvaltns++;
+   //printf("After compute fs=%d\n", fs);
  // if outer iteration, evaluate Fi in Lambda1  - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( wFi == Inf<Index>() ) {  // call Fi()- - - - - - - - - - - - - - - - - -
-  FiLambda = f_lf->get_value();//f(lambda)
-  GiEvaltns++;
-
-  if( FiLambda == -Inf<VarValue>() )    // Fi() unbounded (-inf)
+ if( wFi == Inf<Index>() ) { 
+   printf("Caso comp=inf in fiandgi\n");
+  FiLambda=v_c05f[0]->get_value(); // call Fi()- - - - - - - - - - - - - - - - - -
+  for(Index i=1; i<NrFi; i++)
+    FiLambda = FiLambda+ v_c05f[i]->get_value();//f_lf->get_value();//f(lambda)
+    //printf("FiLambda=%f\n", FiLambda);
+ 
+  if( FiLambda == -Inf<VarValue>() )  // Fi() unbounded (-inf)
    return;
-
   // update FiBest, if necessary - - - - - - - - - - - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   if( FiLambda < FiBest ) {
    FiBest = FiLambda;
-   if( KpBstL )
+   KpBstL=true;
     for(Index i=0; i<NumVar; i++)
 		LmbdBst[i]=Lambda[i];
    }
@@ -1411,55 +1569,75 @@ void SubGradSolver::FiAndGi(  Index wFi ){
  // if Lambda is unfeasible, a new subgradient is computed; otherwise a new
  // constraint is added - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-if( FiLambda == Inf<VarValue>() )// it is a constraint
-	throw("It's out of the feasible region");
- else
+if( FiLambda == Inf<VarValue>() ){// it is a constraint
+	throw(std::logic_error("It's out of the feasible region"));
+}
+else{
   EvalGi( wFi );  // the item is a subgradient 
-
+ }
+ 
 }//end(SubGradSolver::FiandGi())
 
 /*--------------------------------------------------------------------------*/
 void SubGradSolver::GotoLambda1( void ){
  // compute the linearization error of Dir at the new LambdaBar  - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
+printf("Inniter in gotolamda1=%d\n", InnIter);
  if( FiBar < Inf<VarValue>() && deflection ) {
+   printf("Gotolambda1\n");
   VarValue SclPrd;
-  if( ! LHasProj )
+  if( ! LHasProj ){
+    printf("LHasProj=true\n");
    SclPrd = step * NrmDir;
+  }
   else {
+    printf("Lambdahasnotproected\n");
    SclPrd = 0;
    for( Index i = 0 ; i < NumVar ; i++ )
     SclPrd += dir[ i ] * ( LambdaBar[ i ] - Lambda[ i ] );
    }
-
+  printf("Scalarprod=%f\n", SclPrd);
   Epsilon += FiLambda - FiBar + SclPrd;
+  printf("Epsilon=%f\n", Epsilon);
   }
 
  // move Lambda to LambdaBar= - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	for(Index i=0; i <NumVar; i++)
 		LambdaBar[i]=Lambda[i];
-	if( ! InnIter )
-		FiBar = FiLambda;
-
+	if( ! InnIter ){
+	FiBar = FiLambda;
+  printf("Goto FiBar=%f\n", FiBar);
+  }
+	
+  for(Index i=0; i<NumVar; i++)
+  printf("GotoLambda1: LambdaBar[%d]=%f\n", i, LambdaBar[i]);
  }  // end( SubGradSolver::GotoLambda1() )
 
 /*--------------------------------------------------------------------------*/
 Index SubGradSolver::GetGi(VarValue *sub, Index * sgb, Index strt, Index stp){
-	Index NumVar = v_c05f[ 0 ]->get_num_active_var();
-	if( stp > NumVar )
-		stp = NumVar;
+	Index NumFun = v_c05f[ 0 ]->get_num_active_var();
+  //printf("Sono dentro Gi\n");
+	if( stp > NumFun )
+		stp = NumFun;
 		auto range=std::make_pair(strt, stp);
-	HasLin=f_lf->has_linearization(true);
+//	HasLin= v_c05f[strt]->has_linearization(true);
+  //HasLin=true;
+  for(Index k=strt; k<stp; k++){
+  HasLin= v_c05f[k]->has_linearization(false);
+// HasLin=true;
+  //printf("HasLin=%d\n", HasLin);
 	if(HasLin){
-		f_lf->get_linearization_coefficients(sub, range);
-		sgb=nullptr;
+    //printf("Linearizz\n");
+		v_c05f[k]->get_linearization_coefficients(sub, range);
+    //printf("qui\n");
 	}
 	else
-		throw("It's impossible to compute the subgradient because only diagonal linearization is allowed");
-
+		throw(std::logic_error("It's impossible to compute the subgradient because only diagonal linearization is allowed"));
+  }
+  sgb=nullptr;
 	return(stp-strt);
+  //printf("stop-start=%d\n", stp-strt);
 }
 /*--------------------------------------------------------------------------*/
 
@@ -1489,23 +1667,25 @@ void SubGradSolver::Log1(void){
 	if( ( ! f_log ) || ( LogVerb <= 1 ) )
   return;
   
-   *f_log << std::endl << "{" << SCalls << "-" << ParIter << "} ";
+   *f_log <<std::endl << "Stepsize =" << Stepsize_name << ", Deflection= " << Deflection_name<< std::endl;
+   *f_log << std::endl <<"Scalls-Pariter="<< "{" << SCalls << "-" << ParIter << "} ";
 
-   *f_log << " FiC = ";
+   *f_log << " FiBar =";
     if( FiBar == Inf<VarValue>() )
-     *f_log << " -INF";
+     *f_log << "INF";
     else
       *f_log << -FiBar;
 
-    *f_log << " ~ FiBest = ";
+    *f_log << " ~ FiBest =";
     if( FiBest == Inf<VarValue>() )
-     *f_log << " -INF";
+     *f_log << "INF";
     else {
      *f_log << -FiBest;
 
      if( Lowerbound > - Inf<VarValue>() )
-      *f_log << " ~ Gap = " << ( FiBest - Lowerbound ) /
+      *f_log << " ~ Lowerbound = "<< Lowerbound << " ~ Gap = " << ( FiBest - Lowerbound ) /
                                 std::max( std::abs(Lowerbound ) , 1.0 ) << " %";
+   
      }
 }// (end SubGradSolver::Log1())
 
@@ -1536,7 +1716,7 @@ void SubGradSolver::Log3( void ){
 
  *f_log << std::endl << "            ";
  
- *f_log << " Fi1 = ";  // print function value
+ *f_log << " FiLambda = ";  // print function value
    if( FiLambda == Inf<VarValue>() )
      *f_log << " -INF => STOP.";
    else
@@ -1583,7 +1763,7 @@ void SubGradSolver::UpdateSigma( void ){
   Sigma += SclPrd;
   }
 
- //VLOG( 1 , " ~ Sigma1 = " << Sigma );
+ VLOG( 1 , " ~ Sigma1 = " << Sigma );
 
  }  // end( SubGradSolver::UpdateSigma() )
 
@@ -1593,11 +1773,13 @@ void SubGradSolver::UpdtLowerBound(void){
 	//if the objective function is concave i take as lower bound its -upper bound 
 	VarValue Lb= IsConvex ? f_Block->get_valid_lower_bound(false) : -(f_Block->get_valid_upper_bound(false));
 		if(Lb> -Inf<VarValue>()){
+      //printf("true lb");
 			Lowerbound=Lb;
 			TrueLB=true;
 		}
 	else {
 		Lb= IsConvex ? f_Block->get_valid_lower_bound(true) : -(f_Block->get_valid_upper_bound(true));
+    //printf("falselb\n");
 		Lowerbound=Lb;
 		TrueLB=false;
 		}		
@@ -1610,17 +1792,16 @@ void SubGradSolver::UpdtLowerBound(void){
  bool UBc = Ubv.empty();
  std::vector<VarValue> tUbv;
  std::vector<VarValue> tLbv;
- if(UBc)
+ if(UBc!=0)
 	tUbv.resize(num);
  else
 	tUbv.resize(Ubv.size()+ strt);
- if(LBc)
+ if(LBc!=0)
 	tLbv.resize(num);
  else
 	tLbv.resize(Lbv.size()+strt);
 
- tLbv.assign(num,- Inf<double>());
-
+ tLbv.assign(num, -Inf<VarValue>());
  Index i = 0;
  if( ( ! LBc ) && ( ! UBc ) )
 	  for( ; i < num ; ++i ) {
@@ -1690,6 +1871,14 @@ void SubGradSolver::UpdtLowerBound(void){
 			tUbv.clear();
 		}
 	  }
+  /*for(Index i=0; i<num; i++){
+    //printf("Lbv[%d]=%f e Ubv[%d]=%f\n", i, Lbv[i], i , Ubv[i]);
+  }*/
+ //printf("Lbv.size()=%d", Lbv.size());
+ /*std::vector <int>::size_type low=Lbv.size();
+  std::cout <<" low=" << low << std::endl;
+ std::vector <int>::size_type up=Ubv.size();
+ std::cout << "up=" << up << std::endl ;*/
  }  // end( SubGradSolver::AllocateUBLB() )
 
 /*--------------------------------------------------------------------------*/
@@ -1699,26 +1888,33 @@ void SubGradSolver::EvalGi( Index wFi ){
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( wFi > NrFi )
-  wFi = Inf<Index>();//It must be one of the possible index
+  wFi = NrFi;//It must be one of the possible index
 
 
  Index* SGBse;
- Index SGBDim = GetGi( gi , SGBse , wFi? Inf<Index>() : NumVar, NumVar );
-  for(Index i=0; i<NumVar; i++)
+ Index SGBDim = GetGi( gi , SGBse , wFi?Inf<Index>():NrFi, NrFi );
+  for(Index i=0; i<NumVar; i++){
+    printf("In Evalgi gi[%d]=%f\n", i , gi[i]);
     Gi[i]=gi[i];
-
+  }
  // compute the linearization error of Gi[wFi] at Lambda1 - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- VarValue upest=f_lf->get_upper_estimate();
- VarValue lowest=f_lf->get_lower_estimate();
- Sigma = upest-lowest;	
+ for(Index i=0; i<NumVar; i++)
+  //printf("G[%d]=%f\n", i, Gi[i]);
+
+ //VarValue upest=v_c05f[0]->get_upper_estimate();
+ //printf("upest=%f\n", upest);
+ //VarValue lowest=v_c05f[0]->get_lower_estimate();
+ //printf("lowest=%f\n", lowest);
+ Sigma=0;
+ for(Index k=0; k<NrFi;k++)
+ Sigma = Sigma + v_c05f[k]->get_linearization_constant();
+ printf("Sigma in EvalGi=%f\n", Sigma);
  
  if( SGPar4 )
   SigmaHat = Sigma;
 
-
  GiEvaltns++;
-
  }  // end( SubGradSolver::EvalGi() )
 /*--------------------------------------------------------------------------*/
 /*------------------------ Projection methods ------------------------------*/
@@ -1727,74 +1923,95 @@ void SubGradSolver::EvalGi( Index wFi ){
 bool SubGradSolver::ProjFsb( Vec_VarValue Lpt , bool & EmptySet ){
  bool LptHasChgd = false;  // it is true, if Lpt changes
  EmptySet = false;         // it is true, if the feasible set is empty
- 
-  int low=Lbv.size();
-  int up=Ubv.size();
-
- if( ( low ) && ( up ) )
+printf("\n In ProjFsb:\n");
+  std::vector <int>::size_type low=Lbv.size();
+  std::vector <int>::size_type up=Ubv.size();
+//   std::cout <<" low=" << low << std::endl;
+//    std::cout <<" up=" << up << std::endl;
+ if( ( low==0 ) && ( up==0 ) ){
+   printf("caso low=up=0\n");
   return( LptHasChgd );
+ }
 
  // project Lpt on the box constraints  - - - - - - - - - - - - - - - - - -
 
- if( (!low) && (!up) ) {
+ if( (low>0) && (up>0) ) {
+   printf("low>0 and up>0\n");
   // meanwhile, check that they are valid
-
   Index i = 0;
-  for( ; i < NumVar ; i++ ) {
-   if( Ubv[ i ] - Lbv[ i ] < EpsLin ) {		
+ for(; i<NumVar; i++)
+  printf("Lbv[i]=%f\n", Lbv[i]);
+  for(i=0; i<NumVar; i++)
+  printf("Ubv[i]=%f\n", Ubv[i]);
+  for( i=0; i < NumVar ; i++ ) {
+   if( Ubv[ i ] - Lbv[ i ] < EpsLin ) {	
+     printf("Caso Emptyset=true \n");
     EmptySet = true;
     break;
     }
-
    if( Lpt[ i ] > Ubv[ i ] ) {
+     printf("Caso Lpt[i]>Ubv[i]\n");
     Lpt[ i ] = Ubv[ i ];
     LptHasChgd = true;
     break;
     }
    else
     if( Lpt[ i ] < Lbv[ i ] ) {
+      printf("Caso Lpt[i]>Lbv[i]\n");
      Lpt[ i ] = Lbv[ i ];
      LptHasChgd = true;
      break;
      }
    }
 
-  if( ! EmptySet )
-   for( ; i < NumVar ; i++ ) {
+  if( ! EmptySet ){
+    printf("Caso emptyset\n");
+   for(i=0 ; i < NumVar ; i++ ) {
     if( Ubv[ i ] - Lbv[ i ] < EpsLin ) {	
+      printf("Caso Ubv[i]lLbv[i]<EpsLin\n");
      EmptySet = true;
      break;
      }
 
-    if( Lpt[ i ] > Ubv[ i ] )
+    if( Lpt[ i ] > Ubv[ i ] ){
      Lpt[ i ] = Ubv[ i ];
+     printf("Lpt[i]>Ubv[i]\n");
+    }
     else
-     if( Lpt[ i ] < Lbv[ i ] )
+     if( Lpt[ i ] < Lbv[ i ] ){
       Lpt[ i ] = Lbv[ i ];
+      printf("Lpt[i]<Lbv[i]\n");
+     }
+    }
     }
   }
  else
-  if( low ) {
+  if( low>0 ) {
    Index i = 0;
    for( ; i < NumVar ; i++ )
     if( Lpt[ i ] < Lbv[ i ] ) {
+      printf("low>0 Lpt[i]<Lbv[i]\n");
      Lpt[ i ] = Lbv[ i ];
      LptHasChgd = true;
      }
-   for( ; i < NumVar ; i++ )
-    if( Lpt[ i ] < Lbv[ i ] )
+   /*for( i=0; i < NumVar ; i++ )
+    if( Lpt[ i ] < Lbv[ i ] ){
+      printf("low>0 Lpt[i]<Lbv[i]\n")
      Lpt[ i ] = Lbv[ i ];
+    }*/
    }
   else {
    Index i = 0;
-   for(  ; i < NumVar ; i++ )
+   for( i=0 ; i < NumVar ; i++ )
     if( Lpt[ i ] > Ubv[ i ] ) {
+      printf("up>0 Lpt[i]>Ubv[i]\n");
      Lpt[ i ] = Ubv[ i ];
      LptHasChgd = true;
      }
-   for( ; i < NumVar ; i++ )
+   /*for( i=0; i < NumVar ; i++ )
     if( Lpt[ i ] > Ubv[ i ] )
      Lpt[ i ] = Ubv[ i ];
+     */
    }
 
  return( LptHasChgd );
@@ -1813,19 +2030,19 @@ void SubGradSolver::ProjTng( Vec_VarValue Gpt , Vec_VarValue Lpt , Index strt , 
   int low=Lbv.size();
   int up=Ubv.size();
 	
- if( ( low ) && ( up) )
+ if( ( low==0 ) && ( up==0) )
   return;
 
  // project Gpt on the box constraints  - - - - - - - - - - - - - - - - - -
 
- if( (!low) && (!up) ) {
+ if( (low>0) && (up>0) ) {
   for( Index j = strt ; j < stp ; j++ )
    if( ( ( Lpt[ j ] >= Ubv[ j ] ) && ( Gpt[ j ] <= 0 ) ) ||
        ( ( Lpt[ j ] <= Lbv[ j ] ) && ( Gpt[ j ] >= 0 ) ) )
     Gpt[ j ] = 0;
   }
  else{
-  if( !low ) {
+  if( low>0 ) {
    for( Index j = strt ; j < stp ; j++ )
     if( ( Lpt[ j ] <= Lbv[ j ] ) && ( Gpt[ j ] >= 0 ) )
      Gpt[ j ] = 0;
@@ -1850,8 +2067,11 @@ VarValue SubGradSolver::ScalarProduct( Vec_VarValue A, Vec_VarValue B, Index n){
 
 VarValue SubGradSolver::Norm(Vec_VarValue A, Index n){
 	VarValue loc=0;
-	for(Index i=0; i<n; i++)
-		loc=A[i]*A[i];
+	for(Index i=0; i<n; i++){
+		loc=loc+(A[i]*A[i]);
+      //printf("loc=%f\n", loc);
+  }
+
 	return loc;
 }
 
@@ -1886,6 +2106,9 @@ void SubGradSolver::InitDeflection( void ){
 	for(i=0;i<NumVar;i++)
 		dir[i]=VarValue(0);
 
+ for(i=0;i<NumVar;i++)
+ //printf("dir[%d]=%f\n", i, dir[i]); 
+
  // if the pointer to Deflection object is not 0, invoke Format() in
  // Deflection, otherwise some conditions have to be taken into account:
  // i) the stepsize-restricted scheme must be used and ii) the projection
@@ -1901,15 +2124,17 @@ void SubGradSolver::InitDeflection( void ){
   	SGPar1 &= ~( PrjDIRM1 | PrjDIR );
   }
    if(Deflection_name=="PrimalDual"){
-  	if(stepsize){
+    
+  	/*if(stepsize){
   	deflection=dynamic_cast< PrimalDual *>( stepsize );
-  	if(!deflection)
-  	deflection=Deflection::new_Deflection("PrimalDual", this);
+  	if(!deflection){*/
+  	deflection=PrimalDualClass::new_PrimalDualClass("PrimalDual", this);
   	deflection->Format();
-  	}
+    }
+  /*	}
   	else
   		throw(std::invalid_argument("Deflection method not allowed"));
-  }
+  }*/
  }  // end( SubGradSolver::InitDeflection() )
 
 /*--------------------------------------------------------------------------*/
@@ -1959,7 +2184,7 @@ void SubGradSolver::ChgLambdaHat( void ){
   HatEpsilon = alpha * SigmaHat + ( VarValue(1) - alpha ) * HatEpsilon;
   }  // end( alpha < 1 )- - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- //VLog sul valore di FiHat
+VLOG( 1 , " ~ HFi = " << -FiHat );
 
  }  // end( SubGradSolver::ChgHatlambda() )
 
@@ -1988,7 +2213,7 @@ VarValue Stepsize::GetGiNorm( void ){
 
 VarValue Stepsize::GetDNorm( void )
 {
- return( Solver->NrmDir );
+ return( Solver->NrmDir);
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2211,6 +2436,11 @@ return( s_factory );
 /*--------------------------------------------------------------------------*/
 /*------------------------- end(Deflection.cpp) ----------------------------*/
 /*--------------------------------------------------------------------------*/
+
+PrimalDualClass::PrimalDualClassFactoryMap & PrimalDualClass::f_factory( void ){
+	static PrimalDualClassFactoryMap s_factory;
+	return( s_factory );
+	}
 
 
 /*---------------------------------------------------------------------------*/

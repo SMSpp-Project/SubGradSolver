@@ -48,7 +48,7 @@ SBGSLVOBJ = $(SBGSLVSDR)SubGradSolver.o
 #SBGSLVINC = -I$(SBGSLVSDR) -I$(SBGSLVSDR)Deflection -I$(SBGSLVSDR)Stepsize 
 
 SBGSLVH = $(SBGSLVSDR)SubGradSolver.h $(SBGSLVSDR)Stepsize.h \
-$(SBGSLVSDR)Deflection.h $(SBGSLVSDR)Deflection/PrimalDual.h \
+$(SBGSLVSDR)Deflection.h $(SBGSLVSDR)PrimalDualClass/PrimalDual.h \
 $(SBGSLVSDR)Deflection/Volume.h $(SBGSLVSDR)Stepsize/ColorTV.h \
 $(SBGSLVSDR)Stepsize/FumeroTV.h $(SBGSLVSDR)Stepsize/Polyak.h
 
@@ -61,6 +61,6 @@ $(SBGSLVSDR)Stepsize/FumeroTV.h $(SBGSLVSDR)Stepsize/Polyak.h
 
 $(SBGSLVSDR)SubGradSolver.o: $(SBGSLVSDR)SubGradSolver.cpp $(SBGSLVH) \
 	$(SMS++OBJ)
-	$(CC) -c $(SW) $*.cpp -o $@ -I$(SBGSLVSDR) -I$(SBGSLVSDR)Deflection -I$(SBGSLVSDR)Stepsize $(SMS++INC)
+	$(CC) -c $(SW) $*.cpp -o $@ -I$(SBGSLVSDR) -I$(SBGSLVSDR)Deflection -I$(SBGSLVSDR)Stepsize -I$(SBGSLVSDR)PrimalDualClass $(SMS++INC)
 
 ########################## End of makefile ###################################

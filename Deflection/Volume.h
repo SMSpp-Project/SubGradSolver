@@ -232,14 +232,17 @@ inline double get_dflt_dbl_par_d( const idx_type par ) override;
  inline const bool DoSS( void ) override{
  bool serious;
  VarValue delta= GetEpsLin();
+  printf("delta1=%f e m=%f\n", delta, m);
  delta *=m * std::max( 1.0, std::abs(ReadBestFiVal()));
-
+ printf("BestFi=%f\n", ReadBestFiVal());
+printf("delta2=%f\n", delta);
  // if there is an improvement of Fi(), a SS occurs; otherwise, a NS occurs
+ printf("FiVal- FVal=%f-%f=%f\n", ReadFiVal(),ReadFVal(), (ReadFiVal() - ReadFVal()));
  if( (ReadFiVal() - ReadFVal()) >= delta )
   serious = true;
  else
   serious = false;
-
+printf("Serious=%d\n", serious);
  return( serious );
 
  }  // end( Volume::DoSS() )
@@ -381,14 +384,14 @@ inline void Volume::SetVOLLog( std::ostream *outs , const char lvl ){
 inline void Volume::NewDEF( void ){
  // change tau if needed - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
+printf("Defl NrIter=%d\n", GetNrIter());
  if( GetNrIter() <= 1 ) {
   alpha = 1;
   return;
   }
 
  VarValue FiRec = ReadBestFiVal();//f(lambdabest)
-
+printf("newdef bestfibar=%f\n", FiRec );
  // tau should be decreased if after tauIter iterations Fi() is decreased
  // less than 1% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -402,6 +405,7 @@ inline void Volume::NewDEF( void ){
      tau = tauMin;
     }
    }
+   printf("lastvalue=%f tau=%f\n", lastvalue, tau);
  // solve a quadratic problem and get the deflection coefficient - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  Solve();
@@ -447,7 +451,7 @@ inline void Volume::Solve( void ){
  VarValue Epsilon = GetEpsilon();
  // compute the proximity parameter  - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
+printf("GiNorm=%f, DNorm=%f, GixD=%f, Sigma=%f, Epsilon=%f\n", GiNorm, DNorm, GixD, Sigma, Epsilon);
  VarValue proximity = GetStepsize() == Inf<VarValue>() ? 1 : GetStepsize();
 
  // solving the cutting plane model  - - - - - - - - - - - - - - - - - - - - -
@@ -468,7 +472,7 @@ inline void Volume::Solve( void ){
  else
   if( alpha < 1e-8 )
    alpha = tau / 10;
-
+printf("alpha=%f\n", alpha);
  }  // end ( void Solve )
 
 /*--------------------------------------------------------------------------*/

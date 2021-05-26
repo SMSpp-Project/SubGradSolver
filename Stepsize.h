@@ -213,23 +213,26 @@ const std::vector<double> dflt_dbl_par ={
    virtual VarValue GetStepsize( bool StepIsIncr = false ){
     VarValue denomin, step;
     const VarValue STEpZro = 1e-8;
-
+    printf("StepIsIncr=%d\n", StepIsIncr);
     if( StepIsIncr ) {
      VarValue LipCns = GetGlobalLipschitz();
+     printf("LipCns=%f\n", LipCns);
      denomin = LipCns * LipCns * VarValue( LpsFct * GetNItIcr() );
      }
     else
      denomin = GetDNorm();
-
+    printf("denomin=%f e FiLev=%f e STEpZro=%f e FiBar=%f e Beta=%f e Maxbeta=%f\n", denomin, FiLev, STEpZro, ReadFiBar(), Beta, MaxBeta);
     if( denomin <= ( STEpZro * std::max( abs( ReadFiBar() ) , VarValue(1) ) ) )
      step = 1;
     else {
      VarValue Beta_ = Beta;
      if( Beta_ >= std::min( 2.0 , MaxBeta ) )
       Beta_ = std::min( 2.0 - STEpZro , MaxBeta );
+      printf("Beta_=%f\n", Beta_);
      step = Beta_ * ( ReadFiBar() - FiLev ) / denomin;
      }
-
+     printf("denomin=%f e FiLev=%f e STEpZro=%f e FiBar=%f e Beta=%f e Maxbeta=%f\n", denomin, FiLev, STEpZro, ReadFiBar(), Beta, MaxBeta);
+    printf("step=%f\n", step);
     return( step );
 
     }  // end( GetStepsize() )

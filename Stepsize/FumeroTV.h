@@ -303,7 +303,7 @@ inline void NewStep( void ) override
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  FiLambda = ReadFkVal();
-
+ printf("In Stepsize: FiLambda=%f\n", FiLambda);
  if( FiLambda == Inf<VarValue>() )
   throw(  "GetStepsize: this should not happen" );
 
@@ -311,7 +311,7 @@ inline void NewStep( void ) override
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  bool TLchgd = UpdateTargetLevel();
-
+printf("Instepsize Updatetargerlevel=%d\n", TLchgd);
  // update target level- - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -320,14 +320,14 @@ inline void NewStep( void ) override
 
  // fix beta - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
+printf("FiLev=%f\n", FiLev);
  if( Beta < 1e-6 )
   Beta = 1e-6;
-
+printf("Beta=%f\n", Beta);
  // print the level - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- STPLOG( 1 , endl << "           " << " level  = " << -FiLev << " ~  beta = "
-	     << Beta << endl << "           " );
+ STPLOG( 1 , std::endl << "           " << " level  = " << -FiLev << " ~  beta = "
+	     << Beta << std::endl << "           " );
 
  }  // end( NewStep() )
 
@@ -339,9 +339,9 @@ inline void SetSTPLog( std::ostream *outs , const char lvl ) override
 
  #if( LOG_STP )
   if( STPLLvl > 1 ) {
-   *STPLog << endl << "FumeroTV: ~ BetaZero = " << BetaZero
+   *STPLog << std::endl << "FumeroTV: ~ BetaZero = " << BetaZero
 	   << " ~ (Eps0 , r1) = (" << sigma << " , " << r1 << ")"
-	   << " ~  Eta = {" << eta1 << " , " << eta2 << "}" << endl;
+	   << " ~  Eta = {" << eta1 << " , " << eta2 << "}" << std::endl;
    }
  #endif
  }  // end( SetSTPLog() )
@@ -356,10 +356,12 @@ inline bool UpdateTargetLevel( void ) override
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  VarValue LwrBnd_ = GetLowerbound();
+ printf("In stepsize Lwr_Bnd_=%f\n", LwrBnd_);
  if( LwrBnd_ > LwrBnd ) {
   LwrBnd = LwrBnd_;
   TLchgd = true;
-  }
+  printf("In stepsize qui\n");
+    }
 
  // some exception - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -373,6 +375,7 @@ inline bool UpdateTargetLevel( void ) override
  else
   FiRef_ = FiRef - ( 1e-6 * std::max( 1.0 , std::abs( FiRef ) ) );
 
+printf("In stepsize FiRef_=%f\n", FiRef_);
  // beta updating- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 

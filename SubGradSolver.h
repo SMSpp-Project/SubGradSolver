@@ -259,6 +259,7 @@ enum string_par_type_SGSlv {
    TrueLB=false;
    DoSS=true;
    GiEvaltns=0;
+   FiEvaltns=0;
    CSSCntr=0;
    CNSCntr=0;
    HasLin=false;
@@ -1046,6 +1047,8 @@ Index SCalls;      ///< number of calls to compute() (the current included)
 Index ParIter;     ///< number of iterations in this call to compute()
 
 Index GiEvaltns;   ///< total number of Gi() calls
+
+Index FiEvaltns;  ///< total number of Fi() calls
 
 Stepsize * stepsize; ///<pointer to the Stepsize class
  
