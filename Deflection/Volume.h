@@ -395,7 +395,8 @@ printf("newdef bestfibar=%f\n", FiRec );
  // tau should be decreased if after tauIter iterations Fi() is decreased
  // less than 1% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( ! ( GetNrIter() % tauIter ) )
+ if( ! ( GetNrIter() % tauIter ) ){
+	 printf("Dentro");
   if( tau > tauMin ) {
    VarValue x = ( lastvalue - FiRec ) / abs( FiRec );
    lastvalue = FiRec;
@@ -405,6 +406,7 @@ printf("newdef bestfibar=%f\n", FiRec );
      tau = tauMin;
     }
    }
+ }
    printf("lastvalue=%f tau=%f\n", lastvalue, tau);
  // solve a quadratic problem and get the deflection coefficient - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

@@ -2,7 +2,7 @@
 /*--------------------------- File PrimalDualClass.h ----------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * An intermediate class between Stepsize and Deflection and PrimalDual
+ * An intermediate class between Stepsize and Deflection and PrimalDual.
  * 
  * \version 0.1
  *
@@ -49,7 +49,7 @@ namespace SMSpp_di_unipi_it
     @{ */
 
 /**
- * A class created to make factory more efficient
+ * A class created to make factory system more efficient.
  */
 
 class PrimalDualClass : public Deflection , public Stepsize
@@ -84,7 +84,7 @@ using idx_type=ThinComputeInterface::idx_type;
 
 /**@}--------------------------------------------------------------------------*/
 
-  static PrimalDualClass * new_PrimalDualClass( const std::string & classname, SubGradSolver * slvr = nullptr ) {
+ static PrimalDualClass * new_PrimalDualClass( const std::string & classname, SubGradSolver * slvr = nullptr ) {
   const std::string classname_( SMSpp_classname_normalise(
 					        std::string( classname ) ) );
   const auto it = PrimalDualClass::f_factory().find( classname_ );

@@ -218,7 +218,7 @@ virtual double get_dflt_dbl_par_d( const idx_type par )=0;
  * These methods are used to provide access to the information stored into
  * the SubGradSolver object. Deflection is a "friend" of SubGradSolver and 
  * therefore it can read its protected data structures, but classes derived 
- * from Deflection are not friend of SubGrad and cannot. This is why these 
+ * from Deflection are not friend of SubGradSolver and cannot. This is why these 
  * methods are defined in the base class (and implemented in SubGradSolver.cpp).
  * @{ */
 

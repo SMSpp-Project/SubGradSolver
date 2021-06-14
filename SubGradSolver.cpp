@@ -85,7 +85,6 @@ SMSpp_insert_in_factory_cpp_1( ColorTV );
 
 SMSpp_insert_in_factory_cpp_1( Polyak ); 
 
-//SMSpp_insert_in_factory_cpp_1( PrimalDual );
 
 const std::string & PrimalDual::_private_name( void ) {
 static const std::string _name( "PrimalDual" );
@@ -476,14 +475,14 @@ void SubGradSolver::set_Block( Block * block ){
   // checking for 0-th component - - - - - - - - - - - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- /* Index * SG0Bse;
-  Index SG0BDm =GetGi( gi , SG0Bse ,0, NrFi);
+ //Index * SG0Bse;
+  //Index SG0BDm =GetGi( gi , SG0Bse ,0, NrFi);
   //printf("SG0BDm=%d\n", SG0BDm);
     for(Index i=0; i<NumVar; i++){
       //Gi[i]=gi[i];
-      Gi[i]=1;
+      Gi[i]=0;
       //printf("Iter n %d\n", i);
-    }*/
+    }
   //ZeroComp = SG0BDm > 0;
   ZeroComp=true;
   // initialization of data structures for incremental done there inside
@@ -675,7 +674,7 @@ printf("\n\nCiclo nuovo\n\n");
      }
     }
    else{// it's a normal step 
-   printf("normal step\n");
+   printf("normal step=%f\n", step);
     CSmallStep = 0;//The counter is reinizialized because we only check about consecutive short steps
    }  // end( search direction computation, when there are no info about the function valuated in LambdaBar) - - - - - - - - - - - - - - - - -
    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -688,7 +687,7 @@ printf("\n\nCiclo nuovo\n\n");
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   //printf("\n Inniter=%d IsOptimal=%d\n", InnIter, IsOptimal());
   if( ( ! InnIter ) && IsOptimal() ){
-    //printf("\n entro qui\n");
+    printf("\n entro qui\n");
 	   // run optimality events
    int res = eContinue;
    for( auto & ev : v_events[ eBeforeTermination ] )
@@ -731,6 +730,7 @@ printf("\n\nCiclo nuovo\n\n");
   // a real iteration (iterations where Fi() is not evaluated count as well) -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   ParIter++; //new iteration
+  printf("pariter=%d\n", ParIter);
   // is an inner iteration?- - - - - - - - - - - - - - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   printf("NIrIncr=%d GiEvaltns=%d\n", NItIncr, GiEvaltns);
@@ -1250,12 +1250,13 @@ printf("InIsOptimal:\n  tStar=%f, EpsLin=%f, Epsilon=%f, NrmDir=%f, FiBest=%f\n"
 
   if( eps <= 0 )
    eps = EpsLin;
-
+  double d=0.1;
   if( SGPar4 )
    return( tStar * std::sqrt( NrmDir ) + std::min( Epsilon , HatEpsilon )
 	   <= eps * FiL );
   else
-   return( tStar * std::sqrt( NrmDir ) + Epsilon <= eps * FiL );
+  return( tStar * std::sqrt( NrmDir ) + d <= eps * FiL );
+  // return( tStar * std::sqrt( NrmDir ) + Epsilon <= eps * FiL );
   }
  }  // end( SubGradSolver::IsOptimal() )
 
@@ -1508,6 +1509,7 @@ void SubGradSolver::FormLambda1(void){
     printf("\n deflection: step= %f\n", step); 
 		for( Index i = 0 ; i < NumVar ; i++ ){
 			Lambda[i]=LambdaBar[i] - step * dir[i];
+      LamVcblr[ i ]->set_value( Lambda[ i ] );
       //printf("e dir=%f\n", dir[i]);
     }
 	}
@@ -1517,12 +1519,13 @@ void SubGradSolver::FormLambda1(void){
     printf ("\n no deflection: step= %f", step);
 		for( Index i = 0 ; i < NumVar ; i++ ){
 			Lambda[ i ] = LambdaBar[ i ] - step * Gi[ i ];
+      LamVcblr[ i ]->set_value( Lambda[ i ] );
       //printf (" e dir=Gi=%f\n", Gi[i]);
     }
 	}
  	LHasChgd = true;// lambda has changed since the last call to FiandGi()
    for (Index i=0; i<NumVar; i++)
-    printf("FormLambda1 Lambda[%d]=%f\n", i , Lambda[i]);
+    printf("FormLambda1 LamVcblr[%d]=%f Lambda[%d]=%f\n",i, LamVcblr[i], i , Lambda[i]);
 }	//end(SubGradSolver::FormLambda1())
 
 /*--------------------------------------------------------------------------*/
@@ -1892,14 +1895,14 @@ void SubGradSolver::EvalGi( Index wFi ){
 
 
  Index* SGBse;
- Index SGBDim = GetGi( gi , SGBse , wFi?Inf<Index>():NrFi, NrFi );
+ Index SGBDim = GetGi( Gi.data() , SGBse , wFi?Inf<Index>():NrFi, NrFi );
   for(Index i=0; i<NumVar; i++){
-    printf("In Evalgi gi[%d]=%f\n", i , gi[i]);
-    Gi[i]=gi[i];
+    printf("In Evalgi Gi[%d]=%f\n", i , Gi[i]);
+    //Gi[i]=gi[i];
   }
  // compute the linearization error of Gi[wFi] at Lambda1 - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- for(Index i=0; i<NumVar; i++)
+ //for(Index i=0; i<NumVar; i++)
   //printf("G[%d]=%f\n", i, Gi[i]);
 
  //VarValue upest=v_c05f[0]->get_upper_estimate();
@@ -2124,11 +2127,12 @@ void SubGradSolver::InitDeflection( void ){
   	SGPar1 &= ~( PrjDIRM1 | PrjDIR );
   }
    if(Deflection_name=="PrimalDual"){
-    
+    printf("PrimalDual\n");
+    deflection=dynamic_cast< PrimalDualClass *>(Stepsize::new_Stepsize("PrimalDual", this));
+    printf("Dopo\n");
   	/*if(stepsize){
   	deflection=dynamic_cast< PrimalDual *>( stepsize );
   	if(!deflection){*/
-  	deflection=PrimalDualClass::new_PrimalDualClass("PrimalDual", this);
   	deflection->Format();
     }
   /*	}
@@ -2254,7 +2258,7 @@ VarValue Stepsize::ReadFiBar( void )
 /*--------------------------------------------------------------------------*/
 
 VarValue Stepsize::GetGlobalLipschitz( void ){
- 	return(Solver->f_lf->get_Lipschitz_constant());
+ 	return(Solver->v_c05f[0]->get_Lipschitz_constant());
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2391,7 +2395,7 @@ VarValue Deflection::ReadFVal( void ){
  /*--------------------------------------------------------------------------*/
 
 VarValue Deflection::GetGlobalLipschitz( void ){
- 	return(Solver->f_lf->get_Lipschitz_constant());
+ 	return(Solver->v_c05f[0]->get_Lipschitz_constant());
  }
 
 /*--------------------------------------------------------------------------*/

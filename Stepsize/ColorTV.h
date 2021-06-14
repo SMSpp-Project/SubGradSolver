@@ -3,7 +3,7 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Definition and implementation of the class ColorTV, which is a stepsizes 
- * rule (SR) to be used within the subgradient method (SM) [see SubGrad.h].
+ * rule (SR) to be used within the subgradient method (SM) [see SubGradSolver.h].
  * The class conforms to the interface defined by the class Stepsize [see
  * Stepsize.h]. For more details we refer to:
  *

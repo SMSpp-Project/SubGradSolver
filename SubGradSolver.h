@@ -3,9 +3,9 @@
 /*--------------------------------------------------------------------------*/
 
 /** @file
- *Heather file for the SubGradSolver class which implements the CDASolver 
- *interface for NonDifferentiable Optimization Solvers, using a unified 
- *subgradient-type algorithm as described in:
+ * Heather file for the SubGradSolver class which implements the CDASolver 
+ * interface for NonDifferentiable Optimization Solvers.
+ * It uses a unified subgradient-type algorithm as described in:
  *
  *  A. Frangioni, E. Gorgone, B. Gendron.
  *  "On the Computational Efficiency of Subgradient Methods: a Case Study
@@ -98,8 +98,8 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /**
  *SubGradSolver class implements the CDASolver 
- *interface for NonDifferentiable Optimization Solvers, using a unified 
- *subgradient-type algorithm as described in:
+ *interface for NonDifferentiable Optimization Solvers.
+ *It uses a unified subgradient-type algorithm as described in:
  *
  *  A. Frangioni, E. Gorgone, B. Gendron.
  *  "On the Computational Efficiency of Subgradient Methods: a Case Study
@@ -369,7 +369,6 @@ void set_Block( Block * block ) override;
   *
   *					- SGPar3[0]:  1 if the safe rule is used, 0 otherwise
   *
-
   *					- SGPar3[1]:  1 for the stepsize-restricted scheme,
   *									0 for the deflection-restricted scheme.
   *
