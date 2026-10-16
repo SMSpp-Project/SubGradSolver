@@ -2,105 +2,79 @@
 ################################ makefile ####################################
 ##############################################################################
 #                                                                            #
-#   makefile of test (for PolyhedralFunction)                                #
+#   makefile of test (for SubGradSolver)                                     #
 #                                                                            #
-#                                VERSION 1.10                                #
-#                               02 - 12 - 2019                               #
-#                                                                            #
-#                              Implementation by:                            #
-#                                                                            #
-#                              Antonio Frangioni                             #
-#                           Operations Research Group                        #
-#                          Dipartimento di Informatica                       #
-#                              Universita' di Pisa                           #
+#                                Donato Meoli                                #
+#                         Dipartimento di Informatica                        #
+#                             Universita' di Pisa                            #
 #                                                                            #
 ##############################################################################
 
 # module name
-NAME = PolyhedralFunction_test
+NAME = SubGradSolver_unit_test
 
 # basic directory
-DIR = ./
-
-# debug switches
-#SW = -g3 -glldb -fno-inline -std=c++17 -ferror-limit=1
-# debug switches with address sanitizer and extra pedantic warning
-#SW = -g3 -glldb -fno-inline -std=c++17 -ferror-limit=1 -fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer -Wpedantic -Wextra -Wno-unused-parameter
-# production switches with address sanitizer
-#SW = -O3 -std=c++17 -DNDEBUG -fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined
-# production switches
-SW = -O3 -std=c++17 -DNDEBUG -DCLANG_1200_0_32_27_PATCH -ferror-limit=1
+DIR = .
 
 # compiler
 CC = clang++
 
-# default target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# common flags
+COMMON_SW = -std=c++20 -ferror-limit=1 -Wno-enum-compare
 
-default: $(NAME)
+# debug switches
+SW_DEBUG = -g3 -glldb -fno-inline $(COMMON_SW)
 
-# clean - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# production switches
+SW_RELEASE = -O3 $(COMMON_SW) -DNDEBUG
 
-clean::
-	rm -f $(DIR)*.o $(DIR)*~ $(NAME)
+# default target - build in release mode
+default: SW = $(SW_RELEASE)
+default: $(DIR)/$(NAME)
+
+# debug target - build in debug mode
+debug: SW = $(SW_DEBUG)
+debug: $(DIR)/$(NAME)
 
 # define & include the necessary modules- - - - - - - - - - - - - - - - - - -
-# if a module is not used in the current configuration, just comment out the
-# corresponding include line
-# each module outputs some macros to be used here:
-# *OBJ is the final object(s) / library
-# *LIB is the external libreries + -L<libdirs>
-# *H   is the list of all include files
-# *INC is the -I<include directories>
 
-# BundleSolver
-BNDSLVSDR = ../../BundleSolver/
-include $(BNDSLVSDR)makefile-c
+# SMS++
+SMS++SDR = ../../SMS++
+include $(SMS++SDR)/lib/makefile-inc
 
 # SubGradSolver
-SBGSLVSDR = ../../SubGradSolver/
-include $(SBGSLVSDR)makefile
-
-# not necessary, BundleSolver does that already
-# define input macros for SMS++ complete makefile, then include it
-#SMS++SDR = ../../../SMS++/
-#include $(SMS++SDR)lib/makefile-inc
-
-# not necessary, BundleSolver does that already
-# define input macros for libCPLEX complete makefile, then include it
-#libCPLEXDIR = ../../../extlib/
-#include $(libCPLEXDIR)makefile-libCPLEX
-
-# not necessary, BundleSolver does that already
-# MILPSolver
-#MILPSSDR = ../../../MILPSolver/
-#include $(MILPSSDR)makefile
-
-# define input macros for libSCIP library makefile, then include it
-#libSCIPDIR = ../../extlib/
-#include $(libSCIPDIR)makefile-libscip
+SGSkSDR = ..
+include $(SGSkSDR)/makefile-s
 
 # main module (linking phase) - - - - - - - - - - - - - - - - - - - - - - - -
 
 # object files
-MOBJ =  $(BNDSLVOBJ) $(SBGSLVOBJ)
+MOBJ =  $(SGSkOBJ) $(SMS++OBJ)
 
-# libreries
-MLIB =  $(BNDSLVLIB)
+# libraries
+MLIB =  $(SGSkLIB) $(SMS++LIB)
 
-$(NAME): $(DIR)test.o $(MOBJ)
-	$(CC) -o $(DIR)$(NAME) $^ $(MLIB) $(SW)
+$(DIR)/$(NAME): $(MOBJ) $(DIR)/test.o
+	$(CC) -o $(DIR)/$(NAME) $(DIR)/test.o $(MOBJ) $(MLIB) $(SW)
 
-# dependencies: every .o from its .C + every recursively included .h- - - - -
+# dependencies: every .o from its .cpp + every recursively included .h- - - -
 
 # include directives
-MINC =  $(BNDSLVINC) $(SBGSLVINC)
+MINC =  $(SMS++INC) $(SGSkINC)
 
 # includes
-MH =    $(BNDSLVH) $(SBGSLVH)
+MH =    $(SMS++H) $(SGSkH)
 
 # compile command
+$(DIR)/test.o: $(DIR)/test.cpp $(MH)
+	$(CC) -c $(DIR)/test.cpp -o $@ $(MINC) $(SW)
 
-$(DIR)test.o: $(DIR)test.cpp $(MH)
-	$(CC) -c $(DIR)test.cpp -o $@ $(MINC) $(SW)
+# clean target
+clean::
+	rm -f $(DIR)/*.o $(DIR)/*~
+	rm -f $(DIR)/$(NAME)
+
+# phony targets
+.PHONY: default debug clean
 
 ############################ End of makefile #################################

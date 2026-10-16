@@ -11,24 +11,26 @@
 #                                                                             #
 #        $ cmake --build <build-path> --target install                        #
 #                                                                             #
-#    Note: this file tries to respect the principles of Modern CMake,         #
-#          keep it in mind when editing it.                                   #
-#                                                                             #
-#                              Niccolo' Iardella                              #
-#                          Operations Research Group                          #
+#                                Donato Meoli                                 #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
-cmake_minimum_required(VERSION 3.12)
-cmake_policy(VERSION 3.12)
+cmake_minimum_required(VERSION 3.21)
+cmake_policy(VERSION 3.15)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/DeriveVersion.cmake)
+smspp_derive_version(SMSPP_MODULE_VERSION)
+
 project(SubGradSolver
-        VERSION 0.3.0
-        DESCRIPTION "SMS++ SubGradSolver module"
+        VERSION ${SMSPP_MODULE_VERSION}
+        DESCRIPTION "Subgradient methods for the NDO problems of SMS++"
         HOMEPAGE_URL https://gitlab.com/smspp/subgradsolver
         LANGUAGES C CXX)
 
 # These variables make the code harder to read but easier to change.
 set(modName ${PROJECT_NAME})
+
+# C-safe form of modName for the preprocessor macros in <modName>Config.h
+string(MAKE_C_IDENTIFIER "${modName}" modMacro)
 set(modNamespace "SMS++")
 
 # Find out if it's being called by the umbrella.
@@ -39,11 +41,6 @@ get_directory_property(hasParent PARENT_DIRECTORY)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # ----- Settings ------------------------------------------------------------ #
-# This creates an ENABLE_TESTING option (default: ON) and enables the testing
-# using the ctest executable.
-# See: https://cmake.org/cmake/help/latest/manual/ctest.1.html
-#include(CTest)
-
 # Sets the default build type (if none was specified).
 # See: https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html
 include(BuildType)
@@ -59,11 +56,61 @@ endif ()
 # This will generate a *Config.h header in the build directory.
 configure_file(cmake/${modName}Config.h.in ${modName}Config.h)
 
+# ----- RPATH --------------------------------------------------------------- #
+# The installed libraries and executables look for the libraries of the same
+# installation relative to their own location, so that the installed tree can
+# be moved as a whole; the directories of the external libraries are kept.
+include(GNUInstallDirs)
+if (NOT CMAKE_INSTALL_RPATH)
+    if (APPLE)
+        set(rpathOrigin "@loader_path")
+    else ()
+        set(rpathOrigin "$ORIGIN")
+    endif ()
+    file(RELATIVE_PATH binToLib ${CMAKE_INSTALL_FULL_BINDIR}
+            ${CMAKE_INSTALL_FULL_LIBDIR})
+    set(CMAKE_INSTALL_RPATH "${rpathOrigin}" "${rpathOrigin}/${binToLib}")
+endif ()
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 # ----- Library ------------------------------------------------------------- #
 # With the BUILD_SHARED_LIBS variable we can specify if the library will
 # be STATIC or SHARED, so no reason to do it now.
 add_library(${modName})
-target_compile_features(${modName} PUBLIC cxx_std_17)
+target_compile_features(${modName} PUBLIC cxx_std_20)
+
+# The name of the shared library carries the version of its binary interface,
+# which any minor release may change while the major version is 0, and then
+# any major release.
+if (PROJECT_VERSION_MAJOR EQUAL 0)
+    set(soVersion ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR})
+else ()
+    set(soVersion ${PROJECT_VERSION_MAJOR})
+endif ()
+set_target_properties(${modName} PROPERTIES
+        VERSION ${PROJECT_VERSION}
+        SOVERSION ${soVersion})
+
+# The classes of the module register themselves in the factory from a static
+# initialiser, and a linker that drops what looks unused takes the
+# registration away with it: the target tells whoever links it to keep the
+# symbol that forces the module in, or the library as a whole where naming
+# the symbol is not enough.
+if (BUILD_SHARED_LIBS)
+    if (MSVC)
+        target_link_options(${modName} INTERFACE
+                "/INCLUDE:SMSpp_force_load_${modName}")
+    elseif (UNIX AND (NOT APPLE))
+        # the ELF linker decides by the symbols a regular object asks for, so
+        # naming the symbol is not enough and the library has to be kept
+        target_link_options(${modName} INTERFACE "LINKER:--no-as-needed")
+    elseif (APPLE)
+        # ld64 keeps a dylib that provides a symbol to the link, one asked
+        # for by -u included, even under -dead_strip_dylibs
+        target_link_options(${modName} INTERFACE
+                "LINKER:-u,_SMSpp_force_load_${modName}")
+    endif ()
+endif ()
 
 # When adding source files with target_sources(), PRIVATE means that the files
 # should only be added to this library, whereas PUBLIC means they should be
@@ -71,7 +118,10 @@ target_compile_features(${modName} PUBLIC cxx_std_17)
 # INTERFACE can be used for sources that should not be added to this library
 # but should be added to anything that links to it.
 # Note: do not GLOB files here.
-target_sources(${modName} PRIVATE SubGradSolver.cpp)
+target_sources(${modName} PRIVATE
+        src/SubGradSolver.cpp
+        src/Stepsize.cpp
+        src/Deflection.cpp)
 
 # When using target_include_directories(), PUBLIC means that any targets
 # that link to this target also need that include directory.
@@ -85,9 +135,8 @@ target_sources(${modName} PRIVATE SubGradSolver.cpp)
 # installed in the system will look into the INSTALL_INTERFACE path.
 target_include_directories(
         ${modName} PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Deflection>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Stepsize>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
         $<INSTALL_INTERFACE:include/${modNamespace}>)
 
 # When linking other targets to the library with target_link_libraries(),
@@ -101,9 +150,13 @@ target_link_libraries(${modName} PUBLIC ${modNamespace}::SMS++)
 # the library with this notation.
 add_library(${modNamespace}::${modName} ALIAS ${modName})
 
-# ----- Subdirectories ------------------------------------------------------ #
+# ----- Tests --------------------------------------------------------------- #
 if (BUILD_TESTING)
-#    add_subdirectory(test)
+    # enable testing in this directory's scope: the umbrella calls
+    # enable_testing() only after this subdirectory has been processed, so the
+    # test would otherwise not be registered with CTest
+    enable_testing()
+    add_subdirectory(test)
 endif ()
 
 # ----- Install instructions ------------------------------------------------ #
@@ -116,19 +169,12 @@ include(GNUInstallDirs)
 # Install the library
 install(TARGETS ${modName}
         EXPORT ${modName}Targets
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} # .dll
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} # .so .dylib
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}) # .lib
 
 # Install the headers
-install(FILES
-        ${CMAKE_CURRENT_SOURCE_DIR}/Deflection/PrimalDual.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/Deflection/Volume.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/Stepsize/ColorTV.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/Stepsize/FumeroTV.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/Stepsize/Polyak.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/Deflection.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/Stepsize.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/SubGradSolver.h
+install(DIRECTORY include/
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${modNamespace})
 
 # Install the auto-generated configuration header (see above).
@@ -173,8 +219,8 @@ install(FILES
 # dynamic loading will look into it.
 if (hasParent)
     set(SMSPP_BUILD_RPATH
-        "${SMSPP_BUILD_RPATH};${CMAKE_CURRENT_BINARY_DIR}"
-        PARENT_SCOPE)
+            "${SMSPP_BUILD_RPATH};${CMAKE_CURRENT_BINARY_DIR}"
+            PARENT_SCOPE)
 endif ()
 
 # ----- Packaging support --------------------------------------------------- #
@@ -184,14 +230,14 @@ endif ()
 # Using this with the umbrella project is too messy.
 if (NOT hasParent)
     set(CPACK_PACKAGE_VENDOR "SMS++ Team")
-    set(CPACK_PACKAGE_CONTACT "Niccolò Iardella")
+    set(CPACK_PACKAGE_CONTACT "Donato Meoli")
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY ${PROJECT_DESCRIPTION})
     set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_LIST_DIR}/LICENSE")
     set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_LIST_DIR}/README.md")
     set(CPACK_SOURCE_IGNORE_FILES
-        \\\\.git/
-        \\\\.gitignore$
-        \\\\.gitattributes$)
+            \\\\.git/
+            \\\\.gitignore$
+            \\\\.gitattributes$)
     include(CPack)
 endif ()
 

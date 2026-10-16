@@ -1,0 +1,236 @@
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - SGBSCfg.txt - - - - - - - - - - - - - - - - -
+#
+# The BlockSolverConfig of the unit test of the module: one SubGradSolver
+# for each of the rules and of the schemes, all on the same Block, which the
+# test solves with each of them in turn and compares with the known optimum.
+# The ComputeConfig of each SubGradSolver is SGCfg.txt, of which the
+# variants only override what changes.
+#
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+BlockSolverConfig  # exact type of the Configuration object
+
+1  # the BlockSolverConfig is a "differential" one
+
+7  # number of (the names of) Solver in this BlockSolverConfig
+
+# now all the names of the Solver - - - - - - - - - - - - - - - - - - - - - -
+SubGradSolver  # 1st: ColorTV + Volume, deflection-restricted, safe rule
+SubGradSolver  # 2nd: ColorTV, no deflection
+SubGradSolver  # 3rd: Polyak + Volume
+SubGradSolver  # 4th: FumeroTV + Volume
+SubGradSolver  # 5th: PrimalDual, both stepsize and deflection
+SubGradSolver  # 6th: ColorTV, incremental
+SubGradSolver  # 7th: ColorTV + Volume, stepsize-restricted, projections
+
+7  # number of ComputeConfig in this BlockSolverConfig
+
+# now all the ComputeConfig - - - - - - - - - - - - - - - - - - - - - - - - -
+
+# 1st: the base one
+*SGCfg.txt
+
+# 2nd: ColorTV, no deflection
+*SGCfg.txt +
+
+1  # f_diff == 1 ==> only the entries below are changed
+
+0  # number of integer parameters
+
+0  # number of double parameters
+
+1  # number of string parameters
+
+# now all the string parameters
+strDeflection none
+
+0  # number of vector-of-int parameters
+
+# now all the vector-of-int parameters
+# [none]
+
+0  # number of vector-of-double parameters
+
+# now all the vector-of-double parameters
+# [none]
+
+0  # number of vector-of-string parameters
+
+# now all the vector-of-string parameters
+# [none]
+
+# pointer to the "extra" Configuration
+* # [none]
+
+# 3rd: Polyak + Volume
+*SGCfg.txt +
+
+1  # f_diff == 1 ==> only the entries below are changed
+
+0  # number of integer parameters
+
+0  # number of double parameters
+
+1  # number of string parameters
+
+# now all the string parameters
+strStepsize Polyak
+
+0  # number of vector-of-int parameters
+
+# now all the vector-of-int parameters
+# [none]
+
+0  # number of vector-of-double parameters
+
+# now all the vector-of-double parameters
+# [none]
+
+0  # number of vector-of-string parameters
+
+# now all the vector-of-string parameters
+# [none]
+
+# pointer to the "extra" Configuration
+* # [none]
+
+# 4th: FumeroTV + Volume
+*SGCfg.txt +
+
+1  # f_diff == 1 ==> only the entries below are changed
+
+0  # number of integer parameters
+
+0  # number of double parameters
+
+1  # number of string parameters
+
+# now all the string parameters
+strStepsize FumeroTV
+
+0  # number of vector-of-int parameters
+
+# now all the vector-of-int parameters
+# [none]
+
+0  # number of vector-of-double parameters
+
+# now all the vector-of-double parameters
+# [none]
+
+0  # number of vector-of-string parameters
+
+# now all the vector-of-string parameters
+# [none]
+
+# pointer to the "extra" Configuration
+* # [none]
+
+# 5th: PrimalDual, both stepsize and deflection
+*SGCfg.txt +
+
+1  # f_diff == 1 ==> only the entries below are changed
+
+0  # number of integer parameters
+
+0  # number of double parameters
+
+2  # number of string parameters
+
+# now all the string parameters
+strStepsize   PrimalDual
+strDeflection none
+
+0  # number of vector-of-int parameters
+
+# now all the vector-of-int parameters
+# [none]
+
+0  # number of vector-of-double parameters
+
+# now all the vector-of-double parameters
+# [none]
+
+0  # number of vector-of-string parameters
+
+# now all the vector-of-string parameters
+# [none]
+
+# pointer to the "extra" Configuration
+* # [none]
+
+# 6th: ColorTV, incremental (which cannot be deflected)
+*SGCfg.txt +
+
+1  # f_diff == 1 ==> only the entries below are changed
+
+0  # number of integer parameters
+
+1  # number of double parameters
+
+# now all the double parameters
+dblIncrFactor 1  # one inner iteration per component
+
+1  # number of string parameters
+
+# now all the string parameters
+strDeflection none
+
+0  # number of vector-of-int parameters
+
+# now all the vector-of-int parameters
+# [none]
+
+0  # number of vector-of-double parameters
+
+# now all the vector-of-double parameters
+# [none]
+
+0  # number of vector-of-string parameters
+
+# now all the vector-of-string parameters
+# [none]
+
+# pointer to the "extra" Configuration
+* # [none]
+
+# 7th: stepsize-restricted with the safe rule, all vectors projected
+*SGCfg.txt +
+
+1  # f_diff == 1 ==> only the entries below are changed
+
+2  # number of integer parameters
+
+# now all the integer parameters
+intScheme     3  # safe rule, stepsize-restricted
+intProjection 7  # project g_i, d_{i-1} and d_i
+
+0  # number of double parameters
+
+0  # number of string parameters
+
+0  # number of vector-of-int parameters
+
+# now all the vector-of-int parameters
+# [none]
+
+0  # number of vector-of-double parameters
+
+# now all the vector-of-double parameters
+# [none]
+
+0  # number of vector-of-string parameters
+
+# now all the vector-of-string parameters
+# [none]
+
+# pointer to the "extra" Configuration
+* # [none]
+
+# end of BlockSolverConfig - - - - - - - - - - - - - - - - - - - - - - - - -
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - END SGBSCfg.txt - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

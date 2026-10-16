@@ -5,27 +5,21 @@
 #   complete makefile of SubGradSolver                                       #
 #                                                                            #
 #   The makefile defines internally all external libraries (comprised the    #
-#   SMS++ one) required by SubGradSolver. Accordingly, all necessary OBJ, H, #
-#   -I directives, external libraries + -L<libdirs> are added to the         #
-#   corresponding SBGSLV* macros.                                            #
+#   SMS++ one) required by SubGradSolver. Accordingly, all necessary         #
+#   OBJ, H, -I directives, external libraries + -L< libdirs > are added to   #
+#   the corresponding SGSk* macros.                                          #
 #                                                                            #
-#   Input:  $(CC)       = compiler command                                   #
-#           $(SW)       = compiler options                                   #
-#           $(SBGSLVSDR) = the directory where SubGradSolver source is       #
-#           $(SBGSLVODR) = the directory where the objects have to be put    #
+#   Input:  $(CC)        = compiler command                                  #
+#           $(SW)        = compiler options                                  #
+#         $(SGSkSDR)  = the directory where SubGradSolver source is          #
+#        $(SGSkODR)  = the directory where the objects have to be put        #
 #                                                                            #
-#   Output: $(SBGSLVOBJ) = the final object(s) / library                     #
-#           $(SBGSLVLIB) = external libraries + -L<libdirs>                  #
-#           $(SBGSLVH)   = the .h files to include for SubGradSolver         #
-#           $(SBGSLVINC) = the -I$( SubGradSolver directory )                #
+#   Output: $(SGSkOBJ)  = the final object(s) / library                      #
+#              $(SGSkLIB)  = external libraries + -L< libdirs >              #
+#          $(SGSkH)    = the .h files to include for SubGradSolver           #
+#              $(SGSkINC)  = the -I$( SubGradSolver directory )              #
 #                                                                            #
-#                                VERSION 1.12                                #
-#                               30 - 12 - 2020                               #
-#                                                                            #
-#                              Antonio Frangioni                             #
-#                               Enrico Gorgone                               #
-#                               Laura Fiorella                               #
-#                          Operations Research Group                         #
+#                             Antonio Frangioni                              #
 #                         Dipartimento di Informatica                        #
 #                             Universita' di Pisa                            #
 #                                                                            #
@@ -37,25 +31,23 @@
 # each module outputs some macros to be used here:
 # *OBJ is the final object/library
 # *H   is the list of all include files
-# *INC is the -I<include directories>
+# *INC is the -I< include directories >
 
+# define input macros for SMS++ complete makefile, then include it
+SMS++SDR = $(SGSkSDR)/../SMS++
+include $(SMS++SDR)/lib/makefile-c
 
 # include the makefile requiring all external modules in input
-include $(SBGSLVSDR)makefile
+include $(SGSkSDR)/makefile
 
-# macroes to be exported- - - - - - - - - - - - - - - - - - - - - - - - - - -
+# macros to be exported - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-# append external stuff defined in the other makefiles to SBGSLVOBJ,
-# SBGSLVINC and SBGSLVH, thus the := assignment has to be used (use GNU make)
-SBGSLVOBJ := $(SBGSLVOBJ) 
-SBGSLVINC := $(SBGSLVH) $(SBGSLVSDR)Stepsize.h \
-$(SBGSLVSDR)Deflection.h $(SBGSLVSDR)Deflection/PrimalDual.h \
-$(SBGSLVSDR)Deflection/Volume.h $(SBGSLVSDR)Stepsize/ColorTV.h \
-$(SBGSLVSDR)Stepsize/FumeroTV.h $(SBGSLVSDR)Stepsize/Polyak.h
-SBGSLVH:= $(SBGSLVINC) 
- 
+# append external -I directives to SGSkINC, SGSkOBJ and SGSkH as defined
+# by the makefile, thus the := assignment has to be used (use GNU make)
+SGSkOBJ := $(SGSkOBJ) $(SMS++OBJ)
+SGSkINC := $(SGSkINC) $(SMS++INC)
 
-# external libreries for SubGradSolver
-#SBGSLVLIB = 
+# external libraries for SubGradSolver
+SGSkLIB = $(SMS++LIB)
 
 ############################ End of makefile #################################
