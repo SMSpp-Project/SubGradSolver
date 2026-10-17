@@ -14,11 +14,11 @@
  *         Dipartimento di Matematica ed Informatica \n
  *         Universita' di Cagliari \n
  *
- * \author Laura Fiorella \n
- *         Dipartimento di Matematica \n
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Enrico Gorgone, Laura Fiorella
+ * \copyright &copy; by Antonio Frangioni, Enrico Gorgone, Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
