@@ -1,5 +1,11 @@
 # SubGradSolver
 
+[![Pipeline](https://gitlab.com/smspp/subgradsolver/badges/develop/pipeline.svg)](https://gitlab.com/smspp/subgradsolver/-/pipelines?ref=develop)
+[![Release](https://gitlab.com/smspp/subgradsolver/-/badges/release.svg)](https://gitlab.com/smspp/subgradsolver/-/releases)
+[![Documentation](https://img.shields.io/badge/docs-Doxygen-blue)](https://smspp.gitlab.io/smspp-project/)
+[![C++ Standard](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
+[![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
+
 `SubGradSolver` is a SMS++ `CDASolver` for the minimization of a convex
 function, or the maximization of a concave one, given as the sum of
 `C05Function` (the components) and of a linear or separable quadratic 0-th
