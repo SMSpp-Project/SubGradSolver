@@ -54,6 +54,8 @@
 
 #include <chrono>
 
+#include <memory>
+
 #include <random>
 
 #include <unordered_map>
@@ -172,6 +174,21 @@ namespace SMSpp_di_unipi_it
  * deflections and the ergodic average are known to make converge to an
  * optimal solution of the convexified relaxation; this is how
  * LagrangianDualSolver recovers its primal solution.
+ *
+ * A Modification that changes a function makes all that is known about it
+ * useless, and one that changes the set of the ColVariable or their bounds
+ * has the structure read again, the stability center being kept for the
+ * ColVariable that are still there. If the only change is the addition of
+ * ColVariable to the functions (C05FunctionModVarsAddd with a 0 shift),
+ * which are new altogether and have 0 in their box, what is known is
+ * rather extended to them, as they are 0 at all the points known and the
+ * values of the functions there do not change: the new entries of the
+ * subgradient and of the direction are those of the linearizations kept in
+ * the global pools, which the components update, and the direction starts
+ * again when it is not there (i.e., with the ergodic average, see
+ * intPrimalRec); the Stepsize is formatted, since the bounds its level
+ * comes from need not hold for the new problem. This is not done in the
+ * incremental variant, whose subgradient is that of one component only.
  *
  * Only box constraints on the variables are handled, by projection. */
 
@@ -691,6 +708,47 @@ class SubGradSolver : public CDASolver
 
  /// (re)reads the bounds of the ColVariable
  void read_bounds( void );
+
+ /// what is known before the structure is read again [see extend_state()]
+ struct OldState {
+  std::vector< C05Function * > c05f;  ///< the components
+  C05Function * zero;                 ///< the 0-th component
+  std::vector< ColVariable * > vars;  ///< the ColVariable
+  /// the active Variable of each function, components first
+  std::vector< std::vector< ColVariable * > > loc;
+  Vec_VarValue lb;                    ///< the lower bounds
+  Vec_VarValue ub;                    ///< the upper bounds
+  Vec_VarValue LambdaBar;             ///< the stability center
+  Vec_VarValue Lambda;                ///< the current point
+  Vec_VarValue LambdaBest;            ///< the best point
+  Vec_VarValue LambdaHat;             ///< the point LambdaHat
+  Vec_VarValue Gi;                    ///< the subgradient
+  Vec_VarValue GiRaw;                 ///< the unprojected subgradient
+  Vec_VarValue dir;                   ///< the direction
+  Vec_VarValue dirRaw;                ///< the unprojected direction
+  std::vector< bool > dir_ok;         ///< v_dir_ok
+  bool eval_ok;                       ///< f_eval_ok
+  };
+
+ /// saves what is known before the structure is read again
+ std::unique_ptr< OldState > save_state( void );
+
+ /// extends what is known to the Variable added, if they are only that
+ /** Called after the structure has been read again, extends the state of
+  * the algorithm saved in olds to the new structure, if the latter only
+  * differs from the old one by Variable added to the functions, which are
+  * new altogether and are 0 at all the points known (their box contains
+  * 0), so that the values of the functions at those points do not change.
+  * The new entries of the subgradient and of the direction are those of
+  * the linearizations kept in the global pools, given by the components
+  * [see C05FunctionModVarsAddd]; the direction is restarted if it is not
+  * there, i.e., if the global pool holds the ergodic average [see
+  * intPrimalRec]. Returns false, changing nothing, if the structure is not
+  * such, or if the subgradient cannot be completed. */
+ bool extend_state( const OldState & olds );
+
+ /// the squared norm of the direction projected at the stability center
+ [[nodiscard]] VarValue prj_norm( void ) const;
 
  /// processes the outstanding Modification, returns true if all changes
  bool process_outstanding_Modification( void );

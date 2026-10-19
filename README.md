@@ -42,7 +42,11 @@ For each component with a global pool of linearizations, `SubGradSolver`
 keeps there a convex combination of them, either that of the direction or
 the ergodic average weighted by the stepsizes (`intPrimalRec`), and gives it
 as the important linearization of the component in `get_dual_solution()`,
-which is how a `LagrangianDualSolver` recovers its primal solution. All the
+which is how a `LagrangianDualSolver` recovers its primal solution. When
+the components only get new variables, e.g., the multipliers of new
+constraints in a Lagrangian dual, `SubGradSolver` keeps what it knows and
+extends it to them, the new entries of the subgradient and of the direction
+coming from the global pools, rather than starting again. All the
 parameters, those of the rules included, are parameters of `SubGradSolver`,
 and therefore can be given in its `ComputeConfig`; the header
 `SubGradSolver.h` describes them.

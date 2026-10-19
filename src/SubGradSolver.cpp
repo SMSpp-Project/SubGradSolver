@@ -1543,6 +1543,12 @@ bool SubGradSolver::process_outstanding_Modification( void )
  bool rebuild = false;
  bool funchg = false;
 
+ // whether the structure can only have grown by C05FunctionModVarsAddd,
+ // which is checked on the structure as it is after them [see
+ // extend_state()]; the incremental variant has the subgradient of one
+ // component only, which the global pools cannot complete
+ bool addonly = ( SGPar2 <= 0 ) && ( Result != kError );
+
  auto ours = [ this ]( const Function * f ) -> Index {
   for( Index k = 0 ; k < NrFi ; ++k )
    if( v_c05f[ k ] == f )
@@ -1553,11 +1559,20 @@ bool SubGradSolver::process_outstanding_Modification( void )
  for( const auto & mod : v_mod_tmp ) {
   if( std::dynamic_pointer_cast< NBModification >( mod ) ) {
    rebuild = true;
+   addonly = false;
    continue;
    }
 
-  if( std::dynamic_pointer_cast< FunctionModVars >( mod ) ) {
+  if( auto vmod = std::dynamic_pointer_cast< FunctionModVars >( mod ) ) {
    rebuild = true;
+   // only a strongly quasi-additive addition with a 0 shift, i.e., one
+   // that leaves the value of the function where the new Variable are 0,
+   // can be followed; a Function that is not a component does not count,
+   // the structure read again telling whether it has become one
+   if( ( ours( vmod->function() ) != Inf< Index >() ) &&
+       ( ( ! std::dynamic_pointer_cast< C05FunctionModVarsAddd >( vmod ) ) ||
+	 ( vmod->shift() != 0 ) ) )
+    addonly = false;
    continue;
    }
 
@@ -1600,6 +1615,11 @@ bool SubGradSolver::process_outstanding_Modification( void )
   }
 
  if( rebuild ) {
+  // what is known now, if the structure has only grown
+  std::unique_ptr< OldState > olds;
+  if( addonly && ( ! funchg ) )
+   olds = save_state();
+
   // keep the center by ColVariable: the old pointers are only used as keys,
   // as some of the ColVariable may not exist any longer
   std::unordered_map< const ColVariable * , VarValue > old;
@@ -1608,6 +1628,9 @@ bool SubGradSolver::process_outstanding_Modification( void )
 
   clear_structure();
   build_structure( false );
+
+  if( olds && extend_state( *olds ) )
+   return( true );
 
   for( Index i = 0 ; i < NumVar ; ++i ) {
    auto it = old.find( LamVcblr[ i ] );
@@ -1627,6 +1650,248 @@ bool SubGradSolver::process_outstanding_Modification( void )
  return( funchg );
 
  }  // end( SubGradSolver::process_outstanding_Modification )
+
+/*--------------------------------------------------------------------------*/
+
+std::unique_ptr< SubGradSolver::OldState > SubGradSolver::save_state( void )
+{
+ auto olds = std::make_unique< OldState >();
+ olds->c05f = v_c05f;
+ olds->zero = f_zero;
+ olds->vars = LamVcblr;
+
+ // the active Variable of each function, components first, in their order
+ olds->loc.resize( NrFi + 1 );
+ for( Index h = 0 ; h <= NrFi ; ++h ) {
+  const auto & map = v_loc2glob[ h ];
+  auto & loc = olds->loc[ h ];
+  if( map.empty() )
+   loc = LamVcblr;
+  else
+   if( map.front() != Inf< Index >() )
+    for( auto i : map )
+     loc.push_back( LamVcblr[ i ] );
+  }
+
+ olds->lb = lb;
+ olds->ub = ub;
+ olds->LambdaBar = LambdaBar;
+ olds->Lambda = Lambda;
+ olds->LambdaBest = LambdaBest;
+ olds->LambdaHat = LambdaHat;
+ olds->Gi = Gi;
+ olds->GiRaw = GiRaw;
+ olds->dir = dir;
+ olds->dirRaw = dirRaw;
+ olds->dir_ok = v_dir_ok;
+ olds->eval_ok = f_eval_ok;
+ return( olds );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool SubGradSolver::extend_state( const OldState & olds )
+{
+ // the functions must be the same, and the old Variable must all be still
+ // there, with the same bounds
+ if( ( v_c05f != olds.c05f ) || ( f_zero != olds.zero ) || f_empty_box )
+  return( false );
+
+ std::unordered_map< const ColVariable * , Index > var2idx;
+ for( Index i = 0 ; i < NumVar ; ++i )
+  var2idx.emplace( LamVcblr[ i ] , i );
+
+ const Index oNV = olds.vars.size();
+ std::vector< Index > o2n( oNV );
+ std::vector< bool > isnew( NumVar , true );
+ for( Index i = 0 ; i < oNV ; ++i ) {
+  const auto it = var2idx.find( olds.vars[ i ] );
+  if( it == var2idx.end() )
+   return( false );
+  const Index j = o2n[ i ] = it->second;
+  isnew[ j ] = false;
+  if( ( lb[ j ] != olds.lb[ i ] ) || ( ub[ j ] != olds.ub[ i ] ) )
+   return( false );
+  }
+
+ // each new Variable starts at 0, which must be in its box, so that the
+ // values of the functions at the points known are those before
+ for( Index j = 0 ; j < NumVar ; ++j )
+  if( isnew[ j ] && ( ( lb[ j ] > 0 ) || ( ub[ j ] < 0 ) ) )
+   return( false );
+
+ // the active Variable of each function must be the old ones, in the same
+ // order, followed by Variable that are new altogether: one that was there
+ // and is new for the function only would have the linearizations at the
+ // past points, where it may not have been 0, changed in their constant
+ // too, and the values at the points known if it is not 0 there
+ auto local = [ this ]( Index h , Index i ) -> Index {
+  const auto & map = v_loc2glob[ h ];
+  return( map.empty() ? i : map[ i ] );
+  };
+
+ std::vector< Index > nloc( NrFi + 1 , 0 );
+ for( Index h = 0 ; h <= NrFi ; ++h ) {
+  const auto f = ( h < NrFi ) ? v_c05f[ h ] : f_zero;
+  if( ! f )
+   continue;
+  nloc[ h ] = f->get_num_active_var();
+  const auto & oloc = olds.loc[ h ];
+  if( nloc[ h ] < oloc.size() )
+   return( false );
+  for( Index i = 0 ; i < oloc.size() ; ++i )
+   if( LamVcblr[ local( h , i ) ] != oloc[ i ] )
+    return( false );
+  for( Index i = oloc.size() ; i < nloc[ h ] ; ++i )
+   if( ! isnew[ local( h , i ) ] )
+    return( false );
+  }
+
+ // the subgradient and the direction are completed from the linearizations
+ // in the global pools: if some is not there the function information is
+ // lost, if only the direction is the deflection is restarted
+ bool gi_ok = true;
+ bool dir_ok = deflection && olds.eval_ok && f_dir_valid && ( ! PrimalRec );
+ for( Index k = 0 ; k < NrFi ; ++k ) {
+  if( nloc[ k ] == olds.loc[ k ].size() )
+   continue;
+  if( ! v_pool[ k ] ) {
+   gi_ok = dir_ok = false;
+   break;
+   }
+  if( olds.eval_ok &&
+      ( ! v_c05f[ k ]->is_linearization_there( v_slot[ k ] + kSlotG ) ) )
+   gi_ok = false;
+  if( dir_ok && ( ( ! olds.dir_ok[ k ] ) ||
+		  ( ! v_c05f[ k ]->is_linearization_there( v_slot[ k ] +
+							   DirPos ) ) ) )
+   dir_ok = false;
+  }
+
+ if( ! gi_ok )
+  return( false );
+
+ // the old vectors in the new positions, the new entries at 0 - - - - - - -
+
+ auto move = [ & ]( Vec_VarValue & v , const Vec_VarValue & ov ) {
+  v.assign( NumVar , 0 );
+  for( Index i = 0 ; i < oNV ; ++i )
+   v[ o2n[ i ] ] = ov[ i ];
+  };
+
+ move( LambdaBar , olds.LambdaBar );
+ move( Lambda , olds.Lambda );
+ move( LambdaBest , olds.LambdaBest );
+ move( LambdaHat , olds.LambdaHat );
+ move( Gi , olds.Gi );
+ move( GiRaw , olds.GiRaw );
+ move( dir , olds.dir );
+ move( dirRaw , olds.dirRaw );
+ v_dir_ok = olds.dir_ok;
+ f_eval_ok = olds.eval_ok;
+
+ // the new entries of the subgradient and of the direction - - - - - - - -
+
+ if( f_eval_ok ) {
+  const Index NFun = NrFi + ( f_zero ? 1 : 0 );
+  for( Index h = 0 ; h < NFun ; ++h ) {
+   const bool zero = ( h >= NrFi );
+   const Index hh = zero ? NrFi : h;
+   const auto f = zero ? f_zero : v_c05f[ h ];
+   const Index first = olds.loc[ hh ].size();
+   const Index nnew = nloc[ hh ] - first;
+   if( ! nnew )
+    continue;
+
+   v_buf.resize( nnew );
+   const Function::Range rng( first , nloc[ hh ] );
+   if( zero ) {
+    // the gradient of the 0-th component at the new Variable, which are 0
+    // at all the points known, and are so set for it to read
+    for( Index i = first ; i < nloc[ hh ] ; ++i )
+     LamVcblr[ local( hh , i ) ]->set_value( 0 );
+    f->get_linearization_coefficients( v_buf.data() , rng );
+    }
+   else
+    f->get_linearization_coefficients( v_buf.data() , rng ,
+				       v_slot[ h ] + kSlotG );
+
+   for( Index i = 0 ; i < nnew ; ++i )
+    GiRaw[ local( hh , first + i ) ] = rs( v_buf[ i ] );
+
+   if( ! dir_ok )
+    continue;
+
+   // the 0-th component has the same gradient at all the points known
+   if( ! zero )
+    f->get_linearization_coefficients( v_buf.data() , rng ,
+				       v_slot[ h ] + DirPos );
+
+   for( Index i = 0 ; i < nnew ; ++i )
+    dirRaw[ local( hh , first + i ) ] = rs( v_buf[ i ] );
+   }
+
+  // Gi and dir are GiRaw and dirRaw possibly projected at the new entries,
+  // which are 0 at all the points
+  auto prj = [ & ]( Vec_VarValue & v , Index j ) {
+   if( ( ( 0 >= ub[ j ] ) && ( v[ j ] <= 0 ) ) ||
+       ( ( 0 <= lb[ j ] ) && ( v[ j ] >= 0 ) ) )
+    v[ j ] = 0;
+   };
+
+  for( Index j = 0 ; j < NumVar ; ++j ) {
+   if( ! isnew[ j ] )
+    continue;
+   Gi[ j ] = GiRaw[ j ];
+   if( SGPar1 & PrjSG )
+    prj( Gi , j );
+   dir[ j ] = dirRaw[ j ];
+   if( SGPar1 & PrjDIR )
+    prj( dir , j );
+   }
+
+  MaxNrmGi = std::max( MaxNrmGi , norm2( GiRaw ) );
+  }
+
+ // the rule that is also the Deflection is formatted below, which makes
+ // the direction it has formed useless
+ if( ( ! dir_ok ) || f_shared_rule )
+  init_deflection();
+
+ NrmGi = norm2( Gi );
+ if( deflection ) {
+  NrmDir = norm2( dir );
+  dGk = dot( Gi , dir );
+  }
+ dM1GkDone = false;
+ if( f_dir_valid || ( ! deflection ) )
+  NrmPrj = prj_norm();
+
+ // the old problem is the new one with the new Variable at 0, hence a bound
+ // of the former on the optimal value need not be one of the latter, and
+ // the Stepsize, whose level comes from such bounds, starts again
+ CertLB = - INF;
+ if( stepsize )
+  stepsize->format();
+ TotIter = 0;
+ CSmallStep = 0;
+
+ return( true );
+
+ }  // end( SubGradSolver::extend_state )
+
+/*--------------------------------------------------------------------------*/
+
+VarValue SubGradSolver::prj_norm( void ) const
+{
+ const auto & d = deflection ? dir : Gi;
+ VarValue nrm = 0;
+ for( Index i = 0 ; i < NumVar ; ++i )
+  if( ! ( ( ( LambdaBar[ i ] >= ub[ i ] ) && ( d[ i ] <= 0 ) ) ||
+	  ( ( LambdaBar[ i ] <= lb[ i ] ) && ( d[ i ] >= 0 ) ) ) )
+   nrm += d[ i ] * d[ i ];
+ return( nrm );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -1879,12 +2144,7 @@ void SubGradSolver::save_dir( void )
  // whatever is projected in the iterations: the direction is an
  // Epsilon-subgradient of the function plus the indicator of the box, hence
  // if the projection is "0" the center is Epsilon-optimal
- const auto & d = deflection ? dir : Gi;
- NrmPrj = 0;
- for( Index i = 0 ; i < NumVar ; ++i )
-  if( ! ( ( ( LambdaBar[ i ] >= ub[ i ] ) && ( d[ i ] <= 0 ) ) ||
-	  ( ( LambdaBar[ i ] <= lb[ i ] ) && ( d[ i ] >= 0 ) ) ) )
-   NrmPrj += d[ i ] * d[ i ];
+ NrmPrj = prj_norm();
 
  if( ( ! InnIter ) && ( std::sqrt( NrmPrj ) <= NZEps ) &&
      ( FiBar - Epsilon > CertLB ) )

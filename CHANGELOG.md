@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - a valid lower bound from the direction on the box of the variables
 - the handling of the Modification of the functions, of the variables and
   of their bounds
+- the addition of variables to the components (strongly quasi-additive,
+  with 0 in their box) is followed rather than starting again: the values,
+  the points, the subgradient and the direction are kept and extended to
+  the new variables, whose entries come from the linearizations in the
+  global pools, the direction starting again only if it is not there, and
+  the Stepsize is formatted; the other changes of the structure still read
+  it again and forget what is known about the functions
 - `dblNZEps`: when the norm of the direction projected on the tangent cone
   of the box is at most `dblNZEps`, the value at the stability center minus
   the linearization error is a lower bound, and that norm is also the one of
