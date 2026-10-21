@@ -31,6 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the linearization error is a lower bound, and that norm is also the one of
   the stopping condition, whatever `intProjection` is
 
+- the C++20 module `smspp.subgradsolver` (`src/SubGradSolver.cppm`), which
+  exports every name that the headers declare at namespace scope and
+  re-exports `smspp`, so that a source file can write `import
+  smspp.subgradsolver;` in place of the `#include` of the headers; it is
+  built with the CMake option `SMSpp_BUILD_MODULE`, as the target
+  `SMS++::SubGradSolver_module`
+
 ### Changed
 
 - the algorithm re-ported from the `SubGrad` of NDO onto the interface of
@@ -52,7 +59,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - the subgradient was never computed, the projections were never written
   back, the bounds of the variables had the wrong sign and a concave
   function was not maximized
-
 
 ## [0.3.0] - 2021-02-05
 
