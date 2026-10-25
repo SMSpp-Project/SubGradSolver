@@ -38,6 +38,12 @@ SGSkH   = $(SGSkSDR)/include/SubGradSolver.h \
 	$(SGSkSDR)/include/FumeroTV.h $(SGSkSDR)/include/Volume.h \
 	$(SGSkSDR)/include/PrimalDual.h
 
+# the C++20 module smspp.subgradsolver - - - - - - - - - - - - - - - - - - -
+# [see makefile-mod of SMS++]
+
+$(eval $(call SMSppMODrule,SGSk,$(SGSkSDR),SubGradSolver,smspp.subgradsolver,\
+	$(SMS++MOD)))
+
 # clean - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 clean::
