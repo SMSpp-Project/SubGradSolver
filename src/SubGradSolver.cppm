@@ -36,11 +36,9 @@
 module;
 
 #include "ColorTV.h"
-#include "Deflection.h"
 #include "FumeroTV.h"
 #include "Polyak.h"
 #include "PrimalDual.h"
-#include "Stepsize.h"
 #include "SubGradSolver.h"
 #include "Volume.h"
 
