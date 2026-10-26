@@ -42,7 +42,7 @@ SGSkH   = $(SGSkSDR)/include/SubGradSolver.h \
 # [see makefile-mod of SMS++]
 
 $(eval $(call SMSppMODrule,SGSk,$(SGSkSDR),SubGradSolver,smspp.subgradsolver,\
-	$(SMS++MOD)))
+	SMS++))
 
 # clean - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
