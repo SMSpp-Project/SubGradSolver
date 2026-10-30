@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the weight of the Objective of a `Block` [see
+  `Block::set_objective_weight()`]: the value, bounds, Lipschitz constant and
+  linearizations of each component are multiplied by the weight of the
+  Objective of its sub-Block
+
 - the makefiles build the C++20 module `smspp.subgradsolver` when
   `SMSppMOD` is not empty (e.g., `make SMSppMOD=1`), with clang++ 16 or
   later [see `lib/makefile-mod` of SMS++]

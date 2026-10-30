@@ -836,6 +836,11 @@ class SubGradSolver : public CDASolver
   return( f_convex ? v : - v );
   }
 
+ /// the weight of the h-th component, 1 for the 0-th one [see v_c05w]
+ [[nodiscard]] VarValue cw( Index h ) const {
+  return( h < NrFi ? v_c05w[ h ] : 1 );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*---------------------------- PROTECTED FIELDS  ---------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -875,6 +880,11 @@ class SubGradSolver : public CDASolver
 
  bool f_convex;                       ///< true if the function is convex
  std::vector< C05Function * > v_c05f;  ///< the components
+
+ std::vector< VarValue > v_c05w;
+ ///< the weight of each component, that of the Objective of its sub-Block
+ ///< [see Block::set_objective_weight()], by which its value, bounds,
+ ///< Lipschitz constant and linearizations are multiplied [see cw()]
  C05Function * f_zero;                ///< the 0-th component, if any
  Index NrFi;                          ///< number of components
 

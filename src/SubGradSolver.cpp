@@ -372,6 +372,7 @@ void SubGradSolver::build_structure( bool generate )
    sb.push_back( blk );
 
  v_c05f.clear();
+ v_c05w.clear();
  f_zero = nullptr;
 
  if( sb.empty() ) {  // no sub-Block: the objective is a C05Function - - - - -
@@ -403,6 +404,7 @@ void SubGradSolver::build_structure( bool generate )
    }
 
   v_c05f.push_back( c05f );
+  v_c05w.push_back( 1 );  // the Objective of f_Block itself
   }
  else {  // there are sub-Block: each has a C05Function objective- - - - - -
   if( auto obj = f_Block->get_objective() ) {
@@ -464,6 +466,7 @@ void SubGradSolver::build_structure( bool generate )
 			       "Constraint in sub-Block are not allowed" ) );
 
    v_c05f.push_back( c05f );
+   v_c05w.push_back( sb[ i ]->get_objective_weight() );
    }
   }
 
@@ -587,6 +590,7 @@ void SubGradSolver::build_structure( bool generate )
 void SubGradSolver::clear_structure( void )
 {
  v_c05f.clear();
+ v_c05w.clear();
  f_zero = nullptr;
  NrFi = NumVar = 0;
  LamVcblr.clear();
@@ -1146,9 +1150,10 @@ int SubGradSolver::compute( bool changedvars )
  VarValue CompLB = - INF;
  if( ! f_zero ) {
   CompLB = 0;
-  for( auto f : v_c05f ) {
-   CompLB += f_convex ? f->get_global_lower_bound()
-                      : - f->get_global_upper_bound();
+  for( Index k = 0 ; k < NrFi ; ++k ) {
+   const auto f = v_c05f[ k ];
+   CompLB += cw( k ) * ( f_convex ? f->get_global_lower_bound()
+                                  : - f->get_global_upper_bound() );
    if( CompLB == - INF )
     break;
    }
@@ -1817,7 +1822,7 @@ bool SubGradSolver::extend_state( const OldState & olds )
 				       v_slot[ h ] + kSlotG );
 
    for( Index i = 0 ; i < nnew ; ++i )
-    GiRaw[ local( hh , first + i ) ] = rs( v_buf[ i ] );
+    GiRaw[ local( hh , first + i ) ] = rs( cw( h ) * v_buf[ i ] );
 
    if( ! dir_ok )
     continue;
@@ -1828,7 +1833,7 @@ bool SubGradSolver::extend_state( const OldState & olds )
 				       v_slot[ h ] + DirPos );
 
    for( Index i = 0 ; i < nnew ; ++i )
-    dirRaw[ local( hh , first + i ) ] = rs( v_buf[ i ] );
+    dirRaw[ local( hh , first + i ) ] = rs( cw( h ) * v_buf[ i ] );
    }
 
   // Gi and dir are GiRaw and dirRaw possibly projected at the new entries,
@@ -1919,7 +1924,8 @@ bool SubGradSolver::eval_function( Index h , VarValue & val ,
   return( false );
   }
 
- val = f_convex ? f->get_upper_estimate() : - f->get_lower_estimate();
+ val = cw( h ) * ( f_convex ? f->get_upper_estimate()
+                           : - f->get_lower_estimate() );
 
  if( val == INF ) {
   // the point is out of the domain of the function: only a vertical
@@ -1941,8 +1947,12 @@ bool SubGradSolver::eval_function( Index h , VarValue & val ,
  const auto & map = v_loc2glob[ zero ? NrFi : h ];
  const Index nloc = f->get_num_active_var();
  v_buf.resize( nloc );
- if( nloc )
+ if( nloc ) {
   f->get_linearization_coefficients( v_buf.data() );
+  if( const auto w = cw( h ) ; w != 1 )
+   for( auto & gi : v_buf )
+    gi *= w;
+  }
 
  if( map.empty() ) {
   if( f_convex )
@@ -1962,7 +1972,7 @@ bool SubGradSolver::eval_function( Index h , VarValue & val ,
      GiRaw[ map[ i ] ] -= v_buf[ i ];
    }
 
- cnst = rs( f->get_linearization_constant() );
+ cnst = rs( cw( h ) * f->get_linearization_constant() );
 
  if( ( ! zero ) && v_pool[ h ] )
   f->store_linearization( v_slot[ h ] + kSlotG );
@@ -2375,8 +2385,8 @@ bool SubGradSolver::is_optimal( void ) const
 VarValue SubGradSolver::lipschitz( void ) const
 {
  VarValue L = 0;
- for( auto f : v_c05f )
-  if( ( L += f->get_Lipschitz_constant() ) == INF )
+ for( Index k = 0 ; k < NrFi ; ++k )
+  if( ( L += cw( k ) * v_c05f[ k ]->get_Lipschitz_constant() ) == INF )
    break;
 
  if( f_zero && ( L < INF ) )
