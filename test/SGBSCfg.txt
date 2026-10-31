@@ -10,7 +10,7 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-BlockSolverConfig  # exact type of the Configuration object
+BlockSolverConfig     # exact type of the Configuration object
 
 1  # the BlockSolverConfig is a "differential" one
 
@@ -39,7 +39,13 @@ SubGradSolver  # 7th: ColorTV + Volume, stepsize-restricted, projections
 
 0  # number of integer parameters
 
+# now all the integer parameters
+# [none]
+
 0  # number of double parameters
+
+# now all the double parameters
+# [none]
 
 1  # number of string parameters
 
@@ -62,7 +68,7 @@ strDeflection none
 # [none]
 
 # pointer to the "extra" Configuration
-* # [none]
+*  # [none]
 
 # 3rd: Polyak + Volume
 *SGCfg.txt +
@@ -71,7 +77,13 @@ strDeflection none
 
 0  # number of integer parameters
 
+# now all the integer parameters
+# [none]
+
 0  # number of double parameters
+
+# now all the double parameters
+# [none]
 
 1  # number of string parameters
 
@@ -94,7 +106,7 @@ strStepsize Polyak
 # [none]
 
 # pointer to the "extra" Configuration
-* # [none]
+*  # [none]
 
 # 4th: FumeroTV + Volume
 *SGCfg.txt +
@@ -103,7 +115,13 @@ strStepsize Polyak
 
 0  # number of integer parameters
 
+# now all the integer parameters
+# [none]
+
 0  # number of double parameters
+
+# now all the double parameters
+# [none]
 
 1  # number of string parameters
 
@@ -126,7 +144,7 @@ strStepsize FumeroTV
 # [none]
 
 # pointer to the "extra" Configuration
-* # [none]
+*  # [none]
 
 # 5th: PrimalDual, both stepsize and deflection
 *SGCfg.txt +
@@ -135,7 +153,13 @@ strStepsize FumeroTV
 
 0  # number of integer parameters
 
+# now all the integer parameters
+# [none]
+
 0  # number of double parameters
+
+# now all the double parameters
+# [none]
 
 2  # number of string parameters
 
@@ -159,7 +183,7 @@ strDeflection none
 # [none]
 
 # pointer to the "extra" Configuration
-* # [none]
+*  # [none]
 
 # 6th: ColorTV, incremental (which cannot be deflected)
 *SGCfg.txt +
@@ -167,6 +191,9 @@ strDeflection none
 1  # f_diff == 1 ==> only the entries below are changed
 
 0  # number of integer parameters
+
+# now all the integer parameters
+# [none]
 
 1  # number of double parameters
 
@@ -194,7 +221,7 @@ strDeflection none
 # [none]
 
 # pointer to the "extra" Configuration
-* # [none]
+*  # [none]
 
 # 7th: stepsize-restricted with the safe rule, all vectors projected
 *SGCfg.txt +
@@ -209,7 +236,13 @@ intProjection 7  # project g_i, d_{i-1} and d_i
 
 0  # number of double parameters
 
+# now all the double parameters
+# [none]
+
 0  # number of string parameters
+
+# now all the string parameters
+# [none]
 
 0  # number of vector-of-int parameters
 
@@ -227,7 +260,7 @@ intProjection 7  # project g_i, d_{i-1} and d_i
 # [none]
 
 # pointer to the "extra" Configuration
-* # [none]
+*  # [none]
 
 # end of BlockSolverConfig - - - - - - - - - - - - - - - - - - - - - - - - -
 
