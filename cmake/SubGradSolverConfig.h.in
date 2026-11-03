@@ -1,20 +1,19 @@
 /** @file
  * Configuration header for @modName@.
  *
- * \author Niccolò Iardella \n
- *         Operations Research Group \n
+ * \author Niccolo' Iardella \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; Niccolò Iardella
+ * \copyright &copy; by Niccolo' Iardella
  */
 
-#ifndef __@modName@_CONFIG_H
-#define __@modName@_CONFIG_H
+#ifndef __@modMacro@_CONFIG_H
+#define __@modMacro@_CONFIG_H
 
-#define @modName@_VERSION       "@PROJECT_VERSION@"
-#define @modName@_VERSION_MAJOR "@PROJECT_VERSION_MAJOR@"
-#define @modName@_VERSION_MINOR "@PROJECT_VERSION_MINOR@"
-#define @modName@_VERSION_PATCH "@PROJECT_VERSION_PATCH@"
+#define @modMacro@_VERSION       "@PROJECT_VERSION@"
+#define @modMacro@_VERSION_MAJOR "@PROJECT_VERSION_MAJOR@"
+#define @modMacro@_VERSION_MINOR "@PROJECT_VERSION_MINOR@"
+#define @modMacro@_VERSION_PATCH "@PROJECT_VERSION_PATCH@"
 
 #endif

@@ -2,81 +2,79 @@
 ################################ makefile ####################################
 ##############################################################################
 #                                                                            #
-#   makefile of test (for core SMS++)                                        #
+#   makefile of test (for SubGradSolver)                                     #
 #                                                                            #
-#                                VERSION 2.00                                #
-#                               20 - 04 - 2005                               #
-#                                                                            #
-#                              Implementation by:                            #
-#                                                                            #
-#                              Antonio Frangioni                             #
-#                           Operations Research Group                        #
-#                          Dipartimento di Informatica                       #
-#                              Universita' di Pisa                           #
+#                                Donato Meoli                                #
+#                         Dipartimento di Informatica                        #
+#                             Universita' di Pisa                            #
 #                                                                            #
 ##############################################################################
 
 # module name
-# NAME can be both main and test, the corresponding .cpp is compiled
-# but the final executable is always called "test"
-NAME = test
+NAME = SubGradSolver_unit_test
 
 # basic directory
-DIR = ./
-
-# here is where the specific SUBGRADClass to be tested is decided
-# debug switches
-SW = -DHAVE_MFSMX -g -std=c++14 -ferror-limit=1
-# production switches
-#SW = -DHAVE_MFSMX -O3 -std=c++11 -DNDEBUG
+DIR = .
 
 # compiler
 CC = clang++
 
-# default target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# common flags
+COMMON_SW = -std=c++20 $(SMSppSWERR) -Wno-enum-compare
 
-default: $(NAME)
+# debug switches
+SW_DEBUG = -g3 $(SMSppSWDBG) -fno-inline $(COMMON_SW)
 
-# clean - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# production switches
+SW_RELEASE = -O3 $(COMMON_SW) -DNDEBUG
 
-clean::
-	rm -f $(DIR)*.o $(DIR)*~ $(NAME)
+# default target - build in release mode
+default: SW = $(SW_RELEASE)
+default: $(DIR)/$(NAME)
+
+# debug target - build in debug mode
+debug: SW = $(SW_DEBUG)
+debug: $(DIR)/$(NAME)
 
 # define & include the necessary modules- - - - - - - - - - - - - - - - - - -
-# if a module is not used in the current configuration, just comment out the
-# corresponding include line
-# each module outputs some macros to be used here:
-# *OBJ is the final object(s) / library
-# *LIB is the external libreries + -L<libdirs>
-# *H   is the list of all include files
-# *INC is the -I<include directories>
 
-# SUBGRADBlock
-SUBGRADBkSDR = ../
-include $(SUBGRADBkSDR)makefile-c
+# SMS++
+SMS++SDR = ../../SMS++
+include $(SMS++SDR)/lib/makefile-inc
+
+# SubGradSolver
+SGSkSDR = ..
+include $(SGSkSDR)/makefile-s
 
 # main module (linking phase) - - - - - - - - - - - - - - - - - - - - - - - -
 
 # object files
-MOBJ =  $(SUBGRADBkOBJ) 
+MOBJ =  $(SGSkOBJ) $(SMS++OBJ)
 
-# libreries
-MLIB =  $(SUBGRADBkLIB)
+# libraries
+MLIB =  $(SGSkLIB) $(SMS++LIB)
 
-$(NAME): $(MOBJ) $(DIR)$(NAME).o
-	$(CC) -o test $(DIR)$(NAME).o $(MOBJ) $(MLIB) $(SW)
+$(DIR)/$(NAME): $(MOBJ) $(DIR)/test.o
+	$(CC) -o $(DIR)/$(NAME) $(DIR)/test.o $(MOBJ) $(MLIB) $(SW)
 
-# dependencies: every .o from its .C + every recursively included .h- - - - -
+# dependencies: every .o from its .cpp + every recursively included .h- - - -
 
 # include directives
-MINC =  $(SUBGRADBkINC)
+MINC =  $(SMS++INC) $(SGSkINC)
 
 # includes
-MH =    $(SUBGRADBkH) 
+MH =    $(SMS++H) $(SGSkH)
 
 # compile command
+$(DIR)/test.o: $(DIR)/test.cpp $(MH)
+	$(CC) -c $(DIR)/test.cpp -o $@ $(MINC) $(SW)
 
-$(DIR)$(NAME).o: $(DIR)$(NAME).cpp $(MH)
-	$(CC) -c $*.cpp -o $@ $(MINC) $(SW)
+# clean target
+clean::
+	rm -f $(DIR)/*.o $(DIR)/*~
+	rm -f $(DIR)/$(NAME)
+
+# phony targets
+.PHONY: default debug clean
 
 ############################ End of makefile #################################

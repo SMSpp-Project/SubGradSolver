@@ -7,6 +7,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-03
+
+### Added
+
+- the weight of the Objective of a `Block` [see
+  `Block::set_objective_weight()`]: the value, bounds, Lipschitz constant and
+  linearizations of each component are multiplied by the weight of the
+  Objective of its sub-Block
+
+- the makefiles build the C++20 module `smspp.subgradsolver` when
+  `SMSppMOD` is not empty (e.g., `make SMSppMOD=1`), with clang++ 16 or
+  later [see `lib/makefile-mod` of SMS++]
+
+- the module layout of SMS++ (`include/`, `src/`, `test/`, the CMake and
+  makefile builds, the CI), with a unit test solving three small problems
+  with every rule and scheme
+- the convex combination of linearizations kept in the global pools for the
+  primal recovery, either that of the direction or the ergodic average
+  (`intPrimalRec`), given by `get_dual_solution()` as the important
+  linearization of each component
+- a valid lower bound from the direction on the box of the variables
+- the handling of the Modification of the functions, of the variables and
+  of their bounds
+- the addition of variables to the components (strongly quasi-additive,
+  with 0 in their box) is followed rather than starting again: the values,
+  the points, the subgradient and the direction are kept and extended to
+  the new variables, whose entries come from the linearizations in the
+  global pools, the direction starting again only if it is not there, and
+  the Stepsize is formatted; the other changes of the structure still read
+  it again and forget what is known about the functions
+- `dblNZEps`: when the norm of the direction projected on the tangent cone
+  of the box is at most `dblNZEps`, the value at the stability center minus
+  the linearization error is a lower bound, and that norm is also the one of
+  the stopping condition, whatever `intProjection` is
+
+- the C++20 module `smspp.subgradsolver` (`src/SubGradSolver.cppm`), which
+  exports every name that the headers declare at namespace scope and
+  re-exports `smspp`, so that a source file can write `import
+  smspp.subgradsolver;` in place of the `#include` of the headers; it is
+  built with the CMake option `SMSpp_BUILD_MODULE`, as the target
+  `SMS++::SubGradSolver_module`
+
+### Changed
+
+- the README points to the installation guide of the wiki
+  (Installing-SMS++) for the channels that distribute SMS++
+
+- the pipeline builds the module also with its makefiles, after CMake, and
+  runs on a change of the makefiles too [see `ci/makefile` of the umbrella]
+
+- `SMSpp_BUILD_MODULE` no longer stops the configuration when the C++20
+  module cannot be built, i.e., with a CMake older than 3.28, a generator
+  other than Ninja or Visual Studio, a compiler other than Clang 16 (with
+  `clang-scan-deps`) or MSVC 19.34, or a module it imports that is not
+  there: the option is turned off with a warning that says why, and the
+  build goes on with the headers [see `cmake/CheckModule.cmake` of SMS++]
+
+- the algorithm re-ported from the `SubGrad` of NDO onto the interface of
+  `C05Function`: the subgradient is the sum of those of all the components,
+  the 0-th one included, and the linearization errors are those at the
+  stability center
+- the parameters have descriptive names (`intProjection`, `intScheme`,
+  `dbltStar`, `strStepsize`, `strDeflection`, ...), which replace the old
+  ones, and those of the rules are parameters of `SubGradSolver`
+- `Stepsize` and `Deflection` have their own factories, in which
+  `PrimalDual` is registered as both
+
+### Fixed
+
+- on Windows, the executables that copy their DLLs next to themselves
+  are linked one at a time (a job pool of Ninja), since two copies of the
+  same DLL into one directory collided (e.g., with the clang++ of MSYS2)
+
+- with the compilers of MinGW (MSYS2) the target asks whoever links it
+  for the symbol that forces the module in, as with MSVC and on macOS:
+  the linker imports a DLL only for the symbols asked for, so that a
+  program that used none had the module left out and its classes
+  missing from the factory
+
+- the makefiles of the tests and of the tools build also with g++: they
+  take the option that stops at the first error and the one of the
+  debugging information, which clang++ and g++ spell differently
+  (`-ferror-limit=1` and `-glldb` against `-fmax-errors=1` and `-ggdb`),
+  from `SMSppSWERR` and `SMSppSWDBG` of `lib/makefile-OS` of SMS++
+
+- `intFumeroEta1` and `intFumeroEta2` of `FumeroTV` were swapped with
+  respect to the paper: `intFumeroEta2` is the count of failures of the
+  first phase, `intFumeroEta1` that of the second
+
+- the subgradient was never computed, the projections were never written
+  back, the bounds of the variables had the wrong sign and a concave
+  function was not maximized
+
 ## [0.3.0] - 2021-02-05
 
 ### Changed
@@ -25,7 +118,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/subgradsolver/-/compare/0.3.0...develop
+[Unreleased]: https://gitlab.com/smspp/subgradsolver/-/compare/0.4.0...develop
+[0.4.0]: https://gitlab.com/smspp/subgradsolver/-/compare/0.3.0...0.4.0
 [0.3.0]: https://gitlab.com/smspp/subgradsolver/-/compare/0.2.0...0.3.0
 [0.2.0]: https://gitlab.com/smspp/subgradsolver/-/compare/0.1.0...0.2.0
 [0.1.0]: https://gitlab.com/smspp/subgradsolver/-/tags/0.1.0
