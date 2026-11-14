@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- a `C05FunctionMod` with `NothingChanged` or `GlobalPoolRemoved` and an
+  unpredictable change of the value (NaN), which a `LagBFunction` issues
+  when the feasible region of its inner Block changes, did not reset what is
+  known of the function, so that the next call could stop at once on the
+  value of the best point and on the certified lower bound of the old one
+
 ## [0.4.0] - 2026-11-03
 
 ### Added
