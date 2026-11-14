@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- bit 2 of `intResetAlg`: a component whose change is only known to lie in
+  an interval [ lo , hi ] at every point [see `FunctionMod::shift_lower()`]
+  moves the certified lower bound by lo rather than dropping it, so that a
+  value within the accuracy of the bound so kept stops the next call
+
 ### Fixed
 
 - a `C05FunctionMod` with `NothingChanged` or `GlobalPoolRemoved` and an

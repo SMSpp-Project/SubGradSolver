@@ -75,6 +75,8 @@ static constexpr int StepRST = 2;   // the stepsize-restricted scheme
 
 static constexpr int RstRules = 1;   // reset the rules at each compute()
 static constexpr int RstCenter = 2;  // re-read the center at each compute()
+static constexpr int RstShift = 4;   // keep the lower bound through changes
+                                     // known in an interval
 
 // each component has kPoolSz names in its global pool, appended to those
 // that are there when SubGradSolver is attached, so as not to touch those
@@ -1548,6 +1550,24 @@ bool SubGradSolver::process_outstanding_Modification( void )
  bool rebuild = false;
  bool funchg = false;
 
+ // the sum of the lower ends of the intervals of the changes of the
+ // components [see FunctionMod::shift_lower()], each by its weight and in
+ // the frame of the function minimized; - INF if any is unknown
+ VarValue dlo = 0;
+ auto add_lo = [ & ]( Index k , const FunctionMod & fmod ) {
+  if( k >= NrFi ) {  // the linear part has no interval
+   dlo = - INF;
+   return;
+   }
+  const VarValue lo = f_convex ? fmod.shift_lower() : - fmod.shift_upper();
+  const VarValue w = cw( k );
+  if( ( dlo == - INF ) || ( lo == - INF ) || ( w < 0 ) )
+   dlo = - INF;
+  else
+   if( w > 0 )
+    dlo += w * lo;
+  };
+
  // whether the structure can only have grown by C05FunctionModVarsAddd,
  // which is checked on the structure as it is after them [see
  // extend_state()]; the incremental variant has the subgradient of one
@@ -1602,12 +1622,15 @@ bool SubGradSolver::process_outstanding_Modification( void )
    // a Lagrangian function changes
    if( std::isnan( cmod->shift() ) || ( cmod->shift() != 0 ) )
     funchg = true;
+   add_lo( k , *cmod );
    continue;
    }
 
   if( auto fmod = std::dynamic_pointer_cast< FunctionMod >( mod ) ) {
-   if( ours( fmod->function() ) != Inf< Index >() )
+   if( const auto k = ours( fmod->function() ) ; k != Inf< Index >() ) {
     funchg = true;
+    add_lo( k , *fmod );
+    }
    continue;
    }
 
@@ -1652,8 +1675,15 @@ bool SubGradSolver::process_outstanding_Modification( void )
   return( true );
   }
 
- if( funchg )
+ if( funchg ) {
+  // the certified lower bound moves by the sum of the lower ends of the
+  // changes, if they are all known [see intResetAlg]: if CertLB <= f_old
+  // everywhere and f >= f_old + dlo everywhere, then CertLB + dlo <= f
+  const VarValue cert = ( ( RstAlg & RstShift ) && ( CertLB > - INF ) &&
+                          ( dlo > - INF ) ) ? CertLB + dlo : - INF;
   reset_function_info();
+  CertLB = cert;
+  }
 
  return( funchg );
 

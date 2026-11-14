@@ -354,7 +354,12 @@ class SubGradSolver : public CDASolver
   * - intResetAlg [0]: what is reset at the beginning of each compute()
   *   after the first, coded bit-wise: bit 0 for the rules (as after a
   *   change of the function), bit 1 for the stability center, which is
-  *   then read from the value of the ColVariable
+  *   then read from the value of the ColVariable; bit 2 is about what a
+  *   change of a component resets: with it, a component whose change is
+  *   known to lie in an interval [ lo , hi ] at every point [see
+  *   FunctionMod::shift_lower()] moves the certified lower bound by lo
+  *   rather than dropping it, so that a value within the accuracy of the
+  *   bound so kept stops the next call
   *
   * - intPrimalRec [0]: the convex combination of linearizations that is
   *   kept in the global pools for the primal recovery [see
