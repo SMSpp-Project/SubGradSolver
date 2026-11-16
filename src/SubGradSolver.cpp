@@ -1597,7 +1597,10 @@ bool SubGradSolver::process_outstanding_Modification( void )
     default:
      funchg = true;
     }
-   if( ! std::isnan( cmod->shift() ) && ( cmod->shift() != 0 ) )
+   // a change of the value, also an unpredictable one (NaN), which comes
+   // with NothingChanged and GlobalPoolRemoved when the feasible region of
+   // a Lagrangian function changes
+   if( std::isnan( cmod->shift() ) || ( cmod->shift() != 0 ) )
     funchg = true;
    continue;
    }
