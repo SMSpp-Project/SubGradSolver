@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the installed module `smspp.subgradsolver` could not be imported, since
+  its package gave the interface of the module the target of the library by
+  its name in the build tree, which an installed package does not have
+
 - a `C05FunctionMod` with `NothingChanged` or `GlobalPoolRemoved` and an
   unpredictable change of the value (NaN), which a `LagBFunction` issues
   when the feasible region of its inner Block changes, did not reset what is
