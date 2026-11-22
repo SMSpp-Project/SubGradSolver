@@ -146,7 +146,10 @@ bool ColorTV::update_target_level( void )
    }
   else                                       // near 0, must be careful
    if( FiLmbd < 10 ) {
-    FiLev = ( FiLmbd < -9.5 ) ? -10 :
+    // a value at or below -10 (e.g., the first step out of 0) is treated
+    // as one away from 0, so that the level stays below the value
+    FiLev = ( FiLmbd <= -10 ) ? FiLmbd - 0.05 * std::abs( FiLmbd ) :
+            ( FiLmbd < -9.5 ) ? -10 :
             ( FiLmbd > 0 ? FiLmbd * 0.95 : FiLmbd * 1.05 );
     TLchgd = true;
     }

@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the one of `smspp_install_rpath()`, with no test on the system or on the
   compiler [see `SMSppModule.cmake` of SMS++]; CMake 3.24 or later is needed
 
+### Fixed
+
+- `ColorTV` keeps the target level below the value of the function when
+  this jumps from about 0 to -10 or less, as on the first step out of the
+  zero multipliers of a Lagrangian dual whose value is 0 there: the level
+  stayed at -10, above the stability center, the stepsize was negative and
+  the method stopped at once with `kLowPrecision`
+
 ## [0.5.0] - 2026-11-16
 
 ### Fixed
