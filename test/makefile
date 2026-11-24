@@ -4,7 +4,7 @@
 #                                                                            #
 #   makefile of test (for SubGradSolver)                                     #
 #                                                                            #
-#                                Donato Meoli                                #
+#                             Antonio Frangioni                              #
 #                         Dipartimento di Informatica                        #
 #                             Universita' di Pisa                            #
 #                                                                            #
