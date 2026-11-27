@@ -8,7 +8,7 @@
  * C05Function, by means of a (deflected, projected, incremental)
  * subgradient method, as described in
  *
- *  A. Frangioni, E. Gorgone, B. Gendron. "On the computational efficiency
+ *  A. Frangioni, B. Gendron, E. Gorgone. "On the computational efficiency
  *  of subgradient methods: a case study with Lagrangian bounds"
  *  Mathematical Programming Computation 9(4), 573-604, 2017
  *
@@ -99,7 +99,7 @@ namespace SMSpp_di_unipi_it
  *
  * The algorithm is the unified subgradient method (SM) of
  *
- *  A. Frangioni, E. Gorgone, B. Gendron. "On the computational efficiency
+ *  A. Frangioni, B. Gendron, E. Gorgone. "On the computational efficiency
  *  of subgradient methods: a case study with Lagrangian bounds"
  *  Mathematical Programming Computation 9(4), 573-604, 2017
  *

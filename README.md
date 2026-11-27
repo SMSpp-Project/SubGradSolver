@@ -14,7 +14,7 @@ reads it, so that `SubGradSolver` can be used wherever `BundleSolver` is,
 in particular as the inner `Solver` of a `LagrangianDualSolver`. The method
 is the unified subgradient method of
 
-> A. Frangioni, E. Gorgone, B. Gendron. "On the computational efficiency of
+> A. Frangioni, B. Gendron, E. Gorgone. "On the computational efficiency of
 > subgradient methods: a case study with Lagrangian bounds", Mathematical
 > Programming Computation 9(4), 573-604, 2017
 
